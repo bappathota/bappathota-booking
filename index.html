@@ -8,9 +8,6 @@
 <meta name="theme-color" content="#2980b9">
 <link rel="apple-touch-icon" href="icon-192.png">
 
-<!-- jsPDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 <style>
 body{
   margin:0;
@@ -111,7 +108,7 @@ th,td{
 </div>
 
 <!-- TABLE -->
-<h3 id="tableTitle">Today's Availability</h3>
+<h3>Today's Availability</h3>
 <table>
 <thead>
 <tr>
@@ -134,7 +131,7 @@ th,td{
 
 </div>
 
-<!-- ADMIN LOGIN -->
+<!-- ADMIN LOGIN MODAL -->
 <div id="adminModal" class="modal-overlay">
   <div class="modal">
     <h3>Admin Login</h3>
@@ -152,14 +149,17 @@ th,td{
   <div class="modal">
     <h3>Booking Details</h3>
     <div style="text-align:left;font-size:14px">
-      <strong>Guest:</strong> <span id="viewGuest"></span><br>
-      <strong>Phone:</strong> <span id="viewPhone"></span><br>
-      <strong>Guests:</strong> <span id="viewGuests"></span><br>
-      <strong>Room:</strong> <span id="viewRoom"></span><br>
-      <strong>Check-in:</strong> <span id="viewCheckin"></span><br>
-      <strong>Check-out:</strong> <span id="viewCheckout"></span><br>
+      <b>Guest:</b> <span id="viewGuest"></span><br>
+      <b>Phone:</b> <span id="viewPhone"></span><br>
+      <b>Guests:</b> <span id="viewGuests"></span><br>
+      <b>Room:</b> <span id="viewRoom"></span><br>
+      <b>Check-in:</b> <span id="viewCheckin"></span><br>
+      <b>Check-out:</b> <span id="viewCheckout"></span><br>
+      <b>Status:</b> <span id="viewStatus"></span>
     </div>
-    <button class="primary" onclick="closeView()">Close</button>
+    <div class="modal-actions">
+      <button onclick="closeView()">Close</button>
+    </div>
   </div>
 </div>
 
@@ -169,11 +169,11 @@ th,td{
     <h3>Edit Booking</h3>
     <input id="editGuest">
     <input id="editPhone">
-    <input id="editGuests" type="number">
+    <input id="editGuests" type="number" min="1" max="4">
     <input id="editCheckin" type="date">
     <input id="editCheckout" type="date">
     <div class="modal-actions">
-      <button class="warn" onclick="closeEdit()">Cancel</button>
+      <button onclick="closeEdit()">Cancel</button>
       <button class="success" onclick="saveEdit()">Save</button>
     </div>
   </div>
@@ -189,6 +189,10 @@ th,td{
     </div>
   </div>
 </div>
+
+<!-- jsPDF + Invoice -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="invoice.js"></script>
 
 <script>
 const API_URL="https://script.google.com/macros/s/AKfycbyNAx2Tuc3tn2pLg3OVBJ2Cu5iRPn7EnQ-QrscSUC1JQ9s6hgpTecJiZQuS4M3TYRCJ3g/exec";
@@ -221,7 +225,7 @@ function verifyAdmin(){
 function initRooms(){
   $("room").innerHTML="";
   for(let i=1;i<=TOTAL_ROOMS;i++)
-    $("room").innerHTML+=`<option>${i}</option>`;
+    $("room").innerHTML+=`<option value="${i}">Room ${i}</option>`;
 }
 
 /* ADD */
@@ -240,7 +244,9 @@ async function addBooking(){
     check_in:$("checkin").value,
     check_out:$("checkout").value
   });
-  await fetch(API_URL,{method:"POST",body:fd});
+  const r=await fetch(API_URL,{method:"POST",body:fd}).then(r=>r.json());
+  if(!r.success)return alert(r.message);
+  alert("Booking added");
   $("addBookingForm").classList.add("hidden");
   loadToday();
 }
@@ -250,21 +256,24 @@ async function loadAvailability(date){
   const data=await fetch(API_URL).then(r=>r.json());
   $("list").innerHTML="";
   for(let i=1;i<=TOTAL_ROOMS;i++){
-    const b=data.find(x=>x.room_no==i&&date>=toDate(x.check_in)&&date<=toDate(x.check_out));
+    const b=data.find(x=>x.room_no==i&&x.status==="Booked"&&date>=toDate(x.check_in)&&date<=toDate(x.check_out));
     let action="-";
     if(b){
-      action=`<button class="primary" onclick="viewBooking('${b.booking_id}')">View</button>
-              <button class="success" onclick="invoice('${b.booking_id}')">Invoice</button>`;
-      if(adminUnlocked)
-        action+=`<button class="edit" onclick="editBooking('${b.booking_id}')">Edit</button>
-                 <button class="warn" onclick="openCancel('${b.booking_id}')">Cancel</button>`;
+      action=`<button onclick="viewBooking('${b.booking_id}')">View</button>`;
+      if(adminUnlocked){
+        action+=`
+          <button class="edit" onclick="editBooking('${b.booking_id}')">Edit</button>
+          <button class="warn" onclick="openCancel('${b.booking_id}')">Cancel</button>
+          <button class="success" onclick="invoice('${b.booking_id}')">Invoice</button>`;
+      }
     }
-    $("list").innerHTML+=`<tr>
-      <td>Room ${i}</td>
-      <td class="${b?'booked':'available'}">${b?'Booked':'Available'}</td>
-      <td>${b?.guest_name||'-'}</td>
-      <td>${action}</td>
-    </tr>`;
+    $("list").innerHTML+=`
+      <tr>
+        <td>Room ${i}</td>
+        <td class="${b?'booked':'available'}">${b?'Booked':'Available'}</td>
+        <td>${b?.guest_name||'-'}</td>
+        <td>${action}</td>
+      </tr>`;
   }
 }
 function loadToday(){loadAvailability(toDate(new Date()));}
@@ -277,8 +286,9 @@ function viewBooking(id){
     $("viewPhone").textContent=b.phone;
     $("viewGuests").textContent=b.no_of_guests;
     $("viewRoom").textContent=b.room_no;
-    $("viewCheckin").textContent=toDate(b.check_in);
-    $("viewCheckout").textContent=toDate(b.check_out);
+    $("viewCheckin").textContent=b.check_in;
+    $("viewCheckout").textContent=b.check_out;
+    $("viewStatus").textContent=b.status;
     $("viewModal").classList.add("show");
   });
 }
@@ -319,21 +329,6 @@ function confirmCancel(){
   .then(()=>{closeCancel();loadToday();});
 }
 
-/* INVOICE */
-async function invoice(id){
-  const data=await fetch(API_URL).then(r=>r.json());
-  const b=data.find(x=>x.booking_id===id);
-  const {jsPDF}=window.jspdf;
-  const pdf=new jsPDF();
-  pdf.text("BappaThota Homestay Invoice",20,20);
-  pdf.text(`Guest: ${b.guest_name}`,20,35);
-  pdf.text(`Phone: ${b.phone}`,20,45);
-  pdf.text(`Room: ${b.room_no}`,20,55);
-  pdf.text(`Check-in: ${toDate(b.check_in)}`,20,65);
-  pdf.text(`Check-out: ${toDate(b.check_out)}`,20,75);
-  pdf.save(`Invoice_${b.guest_name}.pdf`);
-}
-
 /* CALENDAR */
 let cm=new Date().getMonth(),cy=new Date().getFullYear();
 $("calendarBtn").onclick=()=>{$("calendarWrapper").classList.toggle("hidden");renderCalendar();}
@@ -348,7 +343,7 @@ async function renderCalendar(){
     let html="";
     for(let r=1;r<=TOTAL_ROOMS;r++){
       const b=data.find(x=>x.room_no==r&&date>=toDate(x.check_in)&&date<=toDate(x.check_out));
-      html+=`<div>Room ${r}: ${b?'❌':'✅'}</div>`;
+      html+=`Room ${r}: ${b?'❌':'✅'}<br>`;
     }
     $("calendar").innerHTML+=`<div style="border:1px solid #ccc;padding:6px">${d}<br>${html}</div>`;
   }
