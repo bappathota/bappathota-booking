@@ -8,6 +8,9 @@
 <meta name="theme-color" content="#2980b9">
 <link rel="apple-touch-icon" href="icon-192.png">
 
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
 body{
   margin:0;
@@ -144,27 +147,21 @@ th,td{
   </div>
 </div>
 
-  <!-- VIEW BOOKING MODAL -->
+<!-- VIEW MODAL -->
 <div id="viewModal" class="modal-overlay">
   <div class="modal">
     <h3>Booking Details</h3>
-
-    <div style="text-align:left;font-size:14px;line-height:1.6">
-      <strong>Guest Name:</strong> <span id="viewGuest"></span><br>
+    <div style="text-align:left;font-size:14px">
+      <strong>Guest:</strong> <span id="viewGuest"></span><br>
       <strong>Phone:</strong> <span id="viewPhone"></span><br>
-      <strong>No. of Guests:</strong> <span id="viewGuests"></span><br>
+      <strong>Guests:</strong> <span id="viewGuests"></span><br>
       <strong>Room:</strong> <span id="viewRoom"></span><br>
       <strong>Check-in:</strong> <span id="viewCheckin"></span><br>
       <strong>Check-out:</strong> <span id="viewCheckout"></span><br>
-      <strong>Status:</strong> <span id="viewStatus"></span>
     </div>
-
-    <div class="modal-actions" style="margin-top:15px">
-      <button class="confirm-btn" onclick="closeViewModal()">Close</button>
-    </div>
+    <button class="primary" onclick="closeView()">Close</button>
   </div>
 </div>
-
 
 <!-- EDIT MODAL -->
 <div id="editModal" class="modal-overlay">
@@ -172,7 +169,7 @@ th,td{
     <h3>Edit Booking</h3>
     <input id="editGuest">
     <input id="editPhone">
-    <input id="editGuests" type="number" min="1" max="4">
+    <input id="editGuests" type="number">
     <input id="editCheckin" type="date">
     <input id="editCheckout" type="date">
     <div class="modal-actions">
@@ -234,54 +231,18 @@ $("addBookingBtn").onclick=()=>{
 };
 
 async function addBooking(){
-  if(!/^\d{10}$/.test($("phone").value))
-    return alert("Phone must be 10 digits");
-
-  if($("guests").value > 4)
-    return alert("Max 4 guests allowed");
-
-  if(!$("guest").value || !$("checkin").value || !$("checkout").value)
-    return alert("All fields are required");
-
-  const fd = new URLSearchParams({
-    action: "add",              // ✅ THIS WAS MISSING
-    guest_name: $("guest").value,
-    phone: $("phone").value,
-    no_of_guests: $("guests").value,
-    room_no: $("room").value,
-    check_in: $("checkin").value,
-    check_out: $("checkout").value
+  const fd=new URLSearchParams({
+    action:"add",
+    guest_name:$("guest").value,
+    phone:$("phone").value,
+    no_of_guests:$("guests").value,
+    room_no:$("room").value,
+    check_in:$("checkin").value,
+    check_out:$("checkout").value
   });
-
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      body: fd
-    });
-
-    const result = await res.json();
-
-    if (!result.success) {
-      alert(result.message || "Failed to add booking");
-      return;
-    }
-
-    alert("Booking added successfully");
-
-    // reset form
-    $("addBookingForm").classList.add("hidden");
-    $("guest").value = "";
-    $("phone").value = "";
-    $("guests").value = "";
-    $("checkin").value = "";
-    $("checkout").value = "";
-
-    loadToday(); // refresh table
-
-  } catch (err) {
-    alert("Network error while adding booking");
-    console.error(err);
-  }
+  await fetch(API_URL,{method:"POST",body:fd});
+  $("addBookingForm").classList.add("hidden");
+  loadToday();
 }
 
 /* LOAD */
@@ -289,26 +250,16 @@ async function loadAvailability(date){
   const data=await fetch(API_URL).then(r=>r.json());
   $("list").innerHTML="";
   for(let i=1;i<=TOTAL_ROOMS;i++){
-    const b=data.find(x=>x.room_no==i&&x.status==="Booked"&&date>=toDate(x.check_in)&&date<=toDate(x.check_out));
-    let action = "-";
-
-if (b) {
-  // View is ALWAYS visible
-  action = `
-    <button class="primary" onclick="viewBooking('${b.booking_id}')">View</button>
-  `;
-
-  // Edit & Cancel ONLY for admin
-  if (adminUnlocked) {
-    action += `
-      <button class="edit" onclick="editBooking('${b.booking_id}')">Edit</button>
-      <button class="warn" onclick="openCancel('${b.booking_id}')">Cancel</button>
-    `;
-  }
-}
-
-    $("list").innerHTML+=`
-    <tr>
+    const b=data.find(x=>x.room_no==i&&date>=toDate(x.check_in)&&date<=toDate(x.check_out));
+    let action="-";
+    if(b){
+      action=`<button class="primary" onclick="viewBooking('${b.booking_id}')">View</button>
+              <button class="success" onclick="invoice('${b.booking_id}')">Invoice</button>`;
+      if(adminUnlocked)
+        action+=`<button class="edit" onclick="editBooking('${b.booking_id}')">Edit</button>
+                 <button class="warn" onclick="openCancel('${b.booking_id}')">Cancel</button>`;
+    }
+    $("list").innerHTML+=`<tr>
       <td>Room ${i}</td>
       <td class="${b?'booked':'available'}">${b?'Booked':'Available'}</td>
       <td>${b?.guest_name||'-'}</td>
@@ -317,41 +268,26 @@ if (b) {
   }
 }
 function loadToday(){loadAvailability(toDate(new Date()));}
-function viewBooking(id) {
-  fetch(API_URL)
-    .then(r => r.json())
-    .then(data => {
-      const b = data.find(x => x.booking_id === id);
-      if (!b) {
-        alert("Booking not found");
-        return;
-      }
 
-      document.getElementById("viewGuest").textContent = b.guest_name || "-";
-      document.getElementById("viewPhone").textContent = b.phone || "-";
-      document.getElementById("viewGuests").textContent = b.no_of_guests || "-";
-      document.getElementById("viewRoom").textContent = "Room " + b.room_no;
-      document.getElementById("viewCheckin").textContent = formatDate(b.check_in);
-      document.getElementById("viewCheckout").textContent = formatDate(b.check_out);
-      document.getElementById("viewStatus").textContent = b.status || "-";
-
-      document.getElementById("viewModal").classList.add("show");
-    });
+/* VIEW */
+function viewBooking(id){
+  fetch(API_URL).then(r=>r.json()).then(d=>{
+    const b=d.find(x=>x.booking_id===id);
+    $("viewGuest").textContent=b.guest_name;
+    $("viewPhone").textContent=b.phone;
+    $("viewGuests").textContent=b.no_of_guests;
+    $("viewRoom").textContent=b.room_no;
+    $("viewCheckin").textContent=toDate(b.check_in);
+    $("viewCheckout").textContent=toDate(b.check_out);
+    $("viewModal").classList.add("show");
+  });
 }
-
-function closeViewModal() {
-  document.getElementById("viewModal").classList.remove("show");
-}
-
-function formatDate(d) {
-  return new Date(d).toLocaleDateString();
-}
+function closeView(){$("viewModal").classList.remove("show")}
 
 /* EDIT */
 function editBooking(id){
-  fetch(API_URL).then(r=>r.json()).then(data=>{
-    editData=data.find(x=>x.booking_id===id);
-    if(!editData)return;
+  fetch(API_URL).then(r=>r.json()).then(d=>{
+    editData=d.find(x=>x.booking_id===id);
     $("editGuest").value=editData.guest_name;
     $("editPhone").value=editData.phone;
     $("editGuests").value=editData.no_of_guests;
@@ -372,9 +308,7 @@ function saveEdit(){
     check_in:$("editCheckin").value,
     check_out:$("editCheckout").value
   });
-  fetch(API_URL,{method:"POST",body:fd}).then(()=>{
-    closeEdit();loadToday();
-  });
+  fetch(API_URL,{method:"POST",body:fd}).then(()=>{closeEdit();loadToday();});
 }
 
 /* CANCEL */
@@ -383,6 +317,21 @@ function closeCancel(){$("cancelModal").classList.remove("show")}
 function confirmCancel(){
   fetch(API_URL,{method:"POST",body:new URLSearchParams({action:"cancel",booking_id:cancelId})})
   .then(()=>{closeCancel();loadToday();});
+}
+
+/* INVOICE */
+async function invoice(id){
+  const data=await fetch(API_URL).then(r=>r.json());
+  const b=data.find(x=>x.booking_id===id);
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF();
+  pdf.text("BappaThota Homestay Invoice",20,20);
+  pdf.text(`Guest: ${b.guest_name}`,20,35);
+  pdf.text(`Phone: ${b.phone}`,20,45);
+  pdf.text(`Room: ${b.room_no}`,20,55);
+  pdf.text(`Check-in: ${toDate(b.check_in)}`,20,65);
+  pdf.text(`Check-out: ${toDate(b.check_out)}`,20,75);
+  pdf.save(`Invoice_${b.guest_name}.pdf`);
 }
 
 /* CALENDAR */
@@ -414,6 +363,3 @@ document.addEventListener("DOMContentLoaded",()=>{
 
 </body>
 </html>
-
-
-
