@@ -28,11 +28,12 @@ h1{color:#fff;text-align:center;margin:20px 0}
 }
 
 button{
-  padding:10px 14px;
+  padding:8px 12px;
   border:none;
-  border-radius:8px;
+  border-radius:6px;
   cursor:pointer;
   font-weight:600;
+  margin:2px;
 }
 
 .primary{background:#2980b9;color:#fff}
@@ -52,8 +53,8 @@ th,td{
   border:1px solid #ddd;
   text-align:center;
 }
-.booked{color:red;font-weight:600}
-.available{color:green;font-weight:600}
+.booked{color:#c0392b;font-weight:600}
+.available{color:#27ae60;font-weight:600}
 
 /* MODALS */
 .modal-overlay{
@@ -71,7 +72,7 @@ th,td{
   background:#fff;
   padding:20px;
   border-radius:14px;
-  width:90%;
+  width:95%;
   max-width:420px;
 }
 
@@ -86,7 +87,7 @@ th,td{
 
 .modal input, .modal select{
   width:100%;
-  padding:10px;
+  padding:8px;
   margin-top:4px;
 }
 
@@ -94,10 +95,6 @@ th,td{
   display:flex;
   gap:10px;
   margin-top:15px;
-}
-
-@media(max-width:600px){
-  table{font-size:13px}
 }
 </style>
 </head>
@@ -110,7 +107,6 @@ th,td{
 
 <button id="adminLoginBtn" class="primary">🔐 Admin Login</button>
 <button id="addBookingBtn" class="primary hidden">➕ Add Booking</button>
-<button id="calendarBtn" class="primary">📅 Calendar</button>
 
 <h3>Today's Availability</h3>
 
@@ -126,20 +122,13 @@ th,td{
 <tbody id="list"></tbody>
 </table>
 
-<div id="calendarWrapper" class="hidden">
-  <h3 id="monthLabel"></h3>
-  <button onclick="changeMonth(-1)">⬅</button>
-  <button onclick="changeMonth(1)">➡</button>
-  <div id="calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px"></div>
-</div>
-
 </div>
 
 <!-- ADMIN LOGIN -->
 <div id="adminModal" class="modal-overlay">
   <div class="modal">
     <h3>Admin Login</h3>
-    <label>4 Digit PIN</label>
+    <label>4-digit PIN</label>
     <input id="adminPin" type="password" maxlength="4">
     <div id="adminError" style="color:red"></div>
     <div class="modal-actions">
@@ -179,22 +168,64 @@ th,td{
   </div>
 </div>
 
+<!-- VIEW -->
+<div id="viewModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Booking Details</h3>
+    <p><b>Guest:</b> <span id="vGuest"></span></p>
+    <p><b>Phone:</b> <span id="vPhone"></span></p>
+    <p><b>Guests:</b> <span id="vGuests"></span></p>
+    <p><b>Room:</b> <span id="vRoom"></span></p>
+    <p><b>Check-in:</b> <span id="vIn"></span></p>
+    <p><b>Check-out:</b> <span id="vOut"></span></p>
+    <div class="modal-actions">
+      <button class="primary" onclick="closeView()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT -->
+<div id="editModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Edit Booking</h3>
+
+    <label>Guest Name</label>
+    <input id="eGuest">
+
+    <label>Phone</label>
+    <input id="ePhone">
+
+    <label>No. of Guests</label>
+    <input id="eGuests" type="number" min="1" max="4">
+
+    <label>Check-in</label>
+    <input id="eIn" type="date">
+
+    <label>Check-out</label>
+    <input id="eOut" type="date">
+
+    <div class="modal-actions">
+      <button class="warn" onclick="closeEdit()">Cancel</button>
+      <button class="success" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- INVOICE -->
 <div id="invoiceModal" class="modal-overlay">
   <div class="modal">
     <h3>Invoice</h3>
-
-    <p><strong>Guest:</strong> <span id="invGuest"></span></p>
-    <p><strong>Room:</strong> <span id="invRoom"></span></p>
-    <p><strong>Nights:</strong> <span id="invNights"></span></p>
+    <p><b>Guest:</b> <span id="iGuest"></span></p>
+    <p><b>Room:</b> <span id="iRoom"></span></p>
+    <p><b>Nights:</b> <span id="iNights"></span></p>
 
     <label>Cost per night (₹)</label>
-    <input id="invRate" type="number">
+    <input id="iRate" type="number">
 
     <label>Extra charges (₹)</label>
-    <input id="invExtra" type="number" value="0">
+    <input id="iExtra" type="number" value="0">
 
-    <h3>Total: ₹ <span id="invTotal">0</span></h3>
+    <h3>Total: ₹ <span id="iTotal">0</span></h3>
 
     <div class="modal-actions">
       <button class="warn" onclick="closeInvoice()">Close</button>
@@ -209,10 +240,11 @@ const TOTAL_ROOMS=2;
 
 let admin=false;
 let allData=[];
+let editBookingData=null;
 let invoiceData=null;
 
 const $=id=>document.getElementById(id);
-const toDate=d=>new Date(d).toISOString().split("T")[0];
+const dOnly=d=>new Date(d).toISOString().split("T")[0];
 
 /* ADMIN */
 $("adminLoginBtn").onclick=()=>$("adminModal").classList.add("show");
@@ -236,7 +268,7 @@ function initRooms(){
     $("room").innerHTML+=`<option>${i}</option>`;
 }
 
-/* ADD BOOKING */
+/* ADD */
 $("addBookingBtn").onclick=()=>$("addModal").classList.add("show");
 function closeAdd(){$("addModal").classList.remove("show")}
 
@@ -246,7 +278,7 @@ async function addBooking(){
 
   const ci=$("checkin").value, co=$("checkout").value, rm=$("room").value;
 
-  if(allData.some(b=>b.room_no==rm && ci<=toDate(b.check_out) && co>=toDate(b.check_in)))
+  if(allData.some(b=>b.room_no==rm && ci<=dOnly(b.check_out) && co>=dOnly(b.check_in)))
     return alert("Room already booked for these dates");
 
   const fd=new URLSearchParams({
@@ -271,60 +303,99 @@ async function addBooking(){
 async function loadAvailability(date){
   allData=await fetch(API_URL).then(r=>r.json());
   $("list").innerHTML="";
+
   for(let i=1;i<=TOTAL_ROOMS;i++){
-    const b=allData.find(x=>x.room_no==i && date>=toDate(x.check_in) && date<=toDate(x.check_out));
-    let act=b?`<button onclick="openInvoice('${b.booking_id}')">Invoice</button>`:"-";
+    const b=allData.find(x=>x.room_no==i && date>=dOnly(x.check_in) && date<=dOnly(x.check_out));
+    let action="-";
+
+    if(b){
+      action=`
+        <button class="primary" onclick="viewBooking('${b.booking_id}')">View</button>
+        <button class="success" onclick="openInvoice('${b.booking_id}')">Invoice</button>
+      `;
+      if(admin){
+        action+=`
+          <button class="edit" onclick="editBooking('${b.booking_id}')">Edit</button>
+          <button class="warn" onclick="cancelBooking('${b.booking_id}')">Cancel</button>
+        `;
+      }
+    }
+
     $("list").innerHTML+=`
     <tr>
       <td>Room ${i}</td>
       <td class="${b?'booked':'available'}">${b?'Booked':'Available'}</td>
       <td>${b?.guest_name||'-'}</td>
-      <td>${act}</td>
+      <td>${action}</td>
     </tr>`;
   }
 }
-function loadToday(){loadAvailability(toDate(new Date()))}
+function loadToday(){loadAvailability(dOnly(new Date()))}
+
+/* VIEW */
+function viewBooking(id){
+  const b=allData.find(x=>x.booking_id===id);
+  $("vGuest").textContent=b.guest_name;
+  $("vPhone").textContent=b.phone;
+  $("vGuests").textContent=b.no_of_guests;
+  $("vRoom").textContent="Room "+b.room_no;
+  $("vIn").textContent=dOnly(b.check_in);
+  $("vOut").textContent=dOnly(b.check_out);
+  $("viewModal").classList.add("show");
+}
+function closeView(){$("viewModal").classList.remove("show")}
+
+/* EDIT */
+function editBooking(id){
+  editBookingData=allData.find(x=>x.booking_id===id);
+  $("eGuest").value=editBookingData.guest_name;
+  $("ePhone").value=editBookingData.phone;
+  $("eGuests").value=editBookingData.no_of_guests;
+  $("eIn").value=dOnly(editBookingData.check_in);
+  $("eOut").value=dOnly(editBookingData.check_out);
+  $("editModal").classList.add("show");
+}
+function closeEdit(){$("editModal").classList.remove("show")}
+function saveEdit(){
+  const fd=new URLSearchParams({
+    action:"update",
+    booking_id:editBookingData.booking_id,
+    guest_name:$("eGuest").value,
+    phone:$("ePhone").value,
+    no_of_guests:$("eGuests").value,
+    room_no:editBookingData.room_no,
+    check_in:$("eIn").value,
+    check_out:$("eOut").value
+  });
+  fetch(API_URL,{method:"POST",body:fd}).then(()=>{closeEdit();loadToday();});
+}
+
+/* CANCEL */
+function cancelBooking(id){
+  if(!confirm("Cancel booking?"))return;
+  fetch(API_URL,{method:"POST",body:new URLSearchParams({action:"cancel",booking_id:id})})
+  .then(()=>loadToday());
+}
 
 /* INVOICE */
 function openInvoice(id){
-  invoiceData=allData.find(b=>b.booking_id===id);
-  const nights=(new Date(invoiceData.check_out)-new Date(invoiceData.check_in))/(86400000);
-  $("invGuest").textContent=invoiceData.guest_name;
-  $("invRoom").textContent="Room "+invoiceData.room_no;
-  $("invNights").textContent=nights;
-  $("invRate").value="";
-  $("invExtra").value=0;
-  $("invTotal").textContent=0;
+  invoiceData=allData.find(x=>x.booking_id===id);
+  const nights=(new Date(invoiceData.check_out)-new Date(invoiceData.check_in))/86400000;
+  $("iGuest").textContent=invoiceData.guest_name;
+  $("iRoom").textContent="Room "+invoiceData.room_no;
+  $("iNights").textContent=nights;
+  $("iRate").value="";
+  $("iExtra").value=0;
+  $("iTotal").textContent=0;
   $("invoiceModal").classList.add("show");
 
-  $("invRate").oninput=calc;
-  $("invExtra").oninput=calc;
-
+  $("iRate").oninput=calc;
+  $("iExtra").oninput=calc;
   function calc(){
-    $("invTotal").textContent=(Number($("invRate").value||0)*nights)+Number($("invExtra").value||0);
+    $("iTotal").textContent=(Number($("iRate").value||0)*nights)+Number($("iExtra").value||0);
   }
 }
 function closeInvoice(){$("invoiceModal").classList.remove("show")}
-
-/* CALENDAR */
-let cm=new Date().getMonth(),cy=new Date().getFullYear();
-$("calendarBtn").onclick=()=>{$("calendarWrapper").classList.toggle("hidden");renderCalendar()}
-function changeMonth(d){cm+=d;if(cm<0){cm=11;cy--}if(cm>11){cm=0;cy++}renderCalendar()}
-async function renderCalendar(){
-  $("calendar").innerHTML="";
-  $("monthLabel").textContent=new Date(cy,cm).toLocaleString("default",{month:"long",year:"numeric"});
-  const data=await fetch(API_URL).then(r=>r.json());
-  const days=new Date(cy,cm+1,0).getDate();
-  for(let d=1;d<=days;d++){
-    const date=`${cy}-${String(cm+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    let html="";
-    for(let r=1;r<=TOTAL_ROOMS;r++){
-      const b=data.find(x=>x.room_no==r && date>=toDate(x.check_in)&&date<=toDate(x.check_out));
-      html+=`Room ${r}: ${b?'❌':'✅'}<br>`;
-    }
-    $("calendar").innerHTML+=`<div style="border:1px solid #ccc;padding:6px">${d}<br>${html}</div>`;
-  }
-}
 
 /* START */
 document.addEventListener("DOMContentLoaded",()=>{
