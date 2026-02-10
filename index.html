@@ -369,12 +369,30 @@ async function renderCalendar(){
       const b=data.find(x=>x.room_no==r && date>=dOnly(x.check_in) && date<=dOnly(x.check_out));
       html+=`Room ${r}: ${b?'❌':'✅'}<br>`;
     }
-    $("calendar").innerHTML+=`
-      <div class="calendar-day ${html.includes('❌')?'booked':'available'}">
-        <div class="calendar-date">${d}</div>${html}
-      </div>`;
+    $("calendar").innerHTML += `
+  <div class="calendar-day ${html.includes('❌') ? 'booked' : 'available'}"
+       onclick="selectCalendarDate('${date}')"
+       style="cursor:pointer">
+       
+    <div class="calendar-date">${d}</div>
+    ${html}
+  </div>
+`;
+
   }
 }
+function selectCalendarDate(date) {
+  // Close calendar
+  document.getElementById("calendarWrapper").classList.add("hidden");
+
+  // Load availability for clicked date
+  loadAvailability(date);
+
+  // Update title
+  document.querySelector("h3").textContent =
+    "Availability on " + date;
+}
+
 
 /* START */
 document.addEventListener("DOMContentLoaded",()=>{
@@ -385,3 +403,4 @@ document.addEventListener("DOMContentLoaded",()=>{
 
 </body>
 </html>
+
