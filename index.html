@@ -488,7 +488,7 @@
     }
 
     /* On mobile hide "free" chips to save space, only show booked ones */
-    .room-chip.chip-free { display: none; }
+    .room-chip.chip-free { display: block; font-size: 8px; padding: 1px 3px; opacity: .5; }
 
     .room-chip {
       font-size: 9px;
@@ -498,6 +498,7 @@
     }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 
 <body>
@@ -521,7 +522,16 @@
   </div>
 
   <!-- ROOM CARDS -->
-  <p class="section-title">Today's Availability</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+    <p class="section-title" style="margin:0;">Availability</p>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="btn-ghost btn-sm" onclick="changeDay(-1)">⬅</button>
+      <input type="date" id="availDate"
+        style="padding:7px 12px;background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:10px;color:var(--text);font-family:inherit;font-size:13px;font-weight:600;">
+      <button class="btn-ghost btn-sm" onclick="changeDay(1)">➡</button>
+      <button class="btn-ghost btn-sm" onclick="goToday()">Today</button>
+    </div>
+  </div>
   <div class="rooms-grid" id="roomsGrid">
     <div class="room-card glass"><div class="skeleton" style="height:100px;"></div></div>
     <div class="room-card glass"><div class="skeleton" style="height:100px;"></div></div>
@@ -634,15 +644,10 @@
     <div class="detail-row"><span class="detail-label">Check-in</span><span class="detail-value" id="vIn"></span></div>
     <div class="detail-row"><span class="detail-label">Check-out</span><span class="detail-value" id="vOut"></span></div>
     <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value" id="vDesc" style="text-align:right;max-width:65%;word-break:break-word;"></span></div>
-    <!-- Admin inline description editor (shown only for current/future bookings) -->
-    <div id="vDescEdit" class="hidden" style="margin-top:12px;">
-      <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);">Edit Description</label>
-      <textarea id="vDescInput" rows="3"
-        style="width:100%;margin-top:6px;padding:10px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;resize:vertical;"></textarea>
-      <button class="btn-success btn-sm" style="margin-top:8px;" onclick="saveDescription()">💾 Save Description</button>
-    </div>
     <div class="modal-actions">
       <button class="btn-primary" onclick="closeView()">Close</button>
+      <button id="vEditBtn" class="btn-warning hidden" onclick="openEditFromView()">✏️ Edit Booking</button>
+      <button id="vPurchaseBtn" class="btn-success hidden" onclick="openPurchasesFromView()">🛒 Purchases</button>
     </div>
   </div>
 </div>
@@ -702,6 +707,7 @@
     <div class="detail-row"><span class="detail-label">Guest</span><span class="detail-value" id="iGuest"></span></div>
     <div class="detail-row"><span class="detail-label">Room</span><span class="detail-value" id="iRoom"></span></div>
     <div class="detail-row"><span class="detail-label">Nights</span><span class="detail-value" id="iNights"></span></div>
+    <div class="detail-row"><span class="detail-label">Purchases Total</span><span class="detail-value" style="color:#6ee7b7;">₹ <span id="iPurchaseTotal">0</span></span></div>
     <div class="form-row" style="margin-top:14px;">
       <div class="form-group">
         <label>Cost per night (₹)</label>
@@ -718,7 +724,58 @@
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeInvoice()">Close</button>
-      <button class="btn-success" onclick="window.print()">🖨️ Print</button>
+      <button class="btn-success" onclick="downloadInvoicePDF()">📄 Download PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- PURCHASES MODAL -->
+<div id="purchaseModal" class="modal-overlay">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <div class="modal-icon green">🛒</div>
+      <div><h3>Purchases</h3><p style="color:var(--text-muted);font-size:12px;margin-top:2px" id="pGuestLabel"></p></div>
+    </div>
+
+    <!-- Add item button (admin only) -->
+    <div id="pAddBtn" class="hidden" style="margin-bottom:10px;">
+      <button class="btn-success" style="width:100%;padding:10px;" onclick="toggleAddItem()">➕ Add Item</button>
+    </div>
+
+    <!-- Add item form (admin only, toggled) -->
+    <div id="pAddForm" class="hidden">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Item</label>
+          <input id="pItem" placeholder="e.g. Water bottle">
+        </div>
+        <div class="form-group">
+          <label>Qty</label>
+          <input id="pQty" type="number" min="1" value="1" placeholder="1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Unit Price (₹)</label>
+          <input id="pPrice" type="number" min="0" placeholder="0">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;">
+          <button class="btn-success" style="width:100%" onclick="addPurchase()">➕ Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items list -->
+    <div id="pList" style="margin-top:12px;max-height:220px;overflow-y:auto;"></div>
+
+    <!-- Total -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);">
+      <span style="font-size:13px;color:var(--text-muted);font-weight:600;">PURCHASES TOTAL</span>
+      <span style="font-size:20px;font-weight:800;color:#6ee7b7;">₹ <span id="pTotal">0</span></span>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closePurchases()">Close</button>
     </div>
   </div>
 </div>
@@ -813,8 +870,14 @@ async function addBooking() {
 }
 
 /* ── LOAD ── */
-async function loadAvailability(date) {
-  allData = await fetch(API_URL).then(r => r.json());
+async function loadAvailability(date, forceRefresh = false) {
+  if (!allData.length || forceRefresh) {
+    allData = await fetch(API_URL).then(r => r.json());
+  }
+  renderAvailability(date);
+}
+
+function renderAvailability(date) {
   const grid = $("roomsGrid");
   grid.innerHTML = "";
 
@@ -852,7 +915,27 @@ async function loadAvailability(date) {
       </div>`;
   }
 }
-function loadToday() { loadAvailability(dOnly(new Date())); }
+function loadToday() {
+  const today = dOnly(new Date());
+  $("availDate").value = today;
+  loadAvailability(today, true); // force refresh on initial load
+}
+
+function changeDay(step) {
+  const d = new Date($("availDate").value);
+  d.setDate(d.getDate() + step);
+  const ds = dOnly(d);
+  $("availDate").value = ds;
+  renderAvailability(ds); // use cached data — instant!
+}
+
+function goToday() {
+  const today = dOnly(new Date());
+  $("availDate").value = today;
+  renderAvailability(today); // use cached data — instant!
+}
+
+$("availDate").onchange = () => renderAvailability($("availDate").value);
 
 /* ── VIEW ── */
 let viewData = null;
@@ -870,15 +953,24 @@ function viewBooking(id) {
   const today = dOnly(new Date());
   const isFutureOrCurrent = dOnly(viewData.check_out) >= today;
   if (admin && isFutureOrCurrent) {
-    $("vDescInput").value = viewData.description || "";
-    $("vDescEdit").classList.remove("hidden");
+    $("vEditBtn").classList.remove("hidden");
   } else {
-    $("vDescEdit").classList.add("hidden");
+    $("vEditBtn").classList.add("hidden");
+  }
+  if (admin) {
+    $("vPurchaseBtn").classList.remove("hidden");
+  } else {
+    $("vPurchaseBtn").classList.add("hidden");
   }
 
   $("viewModal").classList.add("show");
 }
 function closeView() { $("viewModal").classList.remove("show"); }
+
+function openEditFromView() {
+  closeView();
+  editBooking(viewData.booking_id);
+}
 
 async function saveDescription() {
   const fd = new URLSearchParams({
@@ -936,7 +1028,7 @@ function cancelBooking(id) {
 }
 
 /* ── INVOICE ── */
-function openInvoice(id) {
+async function openInvoice(id) {
   invoiceData = allData.find(x => x.booking_id === id);
   const nights = Math.max(1, (new Date(invoiceData.check_out) - new Date(invoiceData.check_in)) / 86400000);
   $("iGuest").textContent = invoiceData.guest_name;
@@ -945,15 +1037,203 @@ function openInvoice(id) {
   $("iRate").value = "";
   $("iExtra").value = 0;
   $("iTotal").textContent = 0;
+
+  // Fetch purchases total
+  let purchasesTotal = 0;
+  try {
+    const res = await fetch(`${API_URL}?action=getPurchases&booking_id=${id}`);
+    const items = await res.json();
+    purchasesTotal = items.reduce((s, it) => s + Number(it.qty) * Number(it.unit_price), 0);
+  } catch(e) {}
+  $("iPurchaseTotal").textContent = purchasesTotal.toLocaleString("en-IN");
+
   $("invoiceModal").classList.add("show");
 
   const calc = () => {
-    $("iTotal").textContent = ((Number($("iRate").value || 0) * nights) + Number($("iExtra").value || 0)).toLocaleString("en-IN");
+    const roomTotal = Number($("iRate").value || 0) * nights;
+    const extra = Number($("iExtra").value || 0);
+    $("iTotal").textContent = (roomTotal + extra + purchasesTotal).toLocaleString("en-IN");
   };
   $("iRate").oninput = calc;
   $("iExtra").oninput = calc;
 }
 function closeInvoice() { $("invoiceModal").classList.remove("show"); }
+
+async function downloadInvoicePDF() {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+  const b = invoiceData;
+  const nights = Math.max(1, (new Date(b.check_out) - new Date(b.check_in)) / 86400000);
+  const rate   = Number($("iRate").value || 0);
+  const extra  = Number($("iExtra").value || 0);
+  const purTotal = Number($("iPurchaseTotal").textContent.replace(/,/g,"")) || 0;
+  const total  = (rate * nights) + extra + purTotal;
+
+  const fmt = d => new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" });
+
+  // Header
+  pdf.setFontSize(20); pdf.setFont("helvetica","bold");
+  pdf.text("BappaThota Homestay", 20, 22);
+  pdf.setFontSize(11); pdf.setFont("helvetica","normal");
+  pdf.setTextColor(100);
+  pdf.text("Booking Invoice", 20, 30);
+  pdf.setTextColor(0);
+  pdf.setLineWidth(0.5); pdf.line(20, 34, 190, 34);
+
+  // Guest details
+  let y = 46;
+  const row = (label, val) => {
+    pdf.setFont("helvetica","bold"); pdf.text(label, 20, y);
+    pdf.setFont("helvetica","normal"); pdf.text(String(val), 90, y);
+    y += 9;
+  };
+  row("Guest Name :", b.guest_name);
+  row("Phone :", b.phone || "-");
+  row("Room No :", "Room " + b.room_no);
+  row("No. of Guests :", b.no_of_guests);
+  row("Check-in :", fmt(b.check_in));
+  row("Check-out :", fmt(b.check_out));
+
+  y += 4; pdf.line(20, y, 190, y); y += 10;
+
+  // Charges
+  pdf.setFont("helvetica","bold"); pdf.text("Charges", 20, y); y += 9;
+  pdf.setFont("helvetica","normal");
+  if (rate) { pdf.text(`Room (${nights} night(s) × ₹${rate})`, 25, y); pdf.text(`₹ ${(rate*nights).toLocaleString("en-IN")}`, 160, y); y += 8; }
+  if (purTotal) { pdf.text("Purchases", 25, y); pdf.text(`₹ ${purTotal.toLocaleString("en-IN")}`, 160, y); y += 8; }
+  if (extra) { pdf.text("Extra charges", 25, y); pdf.text(`₹ ${extra.toLocaleString("en-IN")}`, 160, y); y += 8; }
+
+  y += 4; pdf.setLineWidth(0.3); pdf.line(20, y, 190, y); y += 10;
+  pdf.setFontSize(14); pdf.setFont("helvetica","bold");
+  pdf.text("Total", 20, y); pdf.text(`₹ ${total.toLocaleString("en-IN")}`, 160, y);
+
+  // Footer
+  y += 20; pdf.setFontSize(10); pdf.setFont("helvetica","normal"); pdf.setTextColor(120);
+  pdf.text("Thank you for choosing BappaThota Homestay!", 20, y);
+
+  pdf.save(`Invoice_${b.guest_name.replace(/ /g,"_")}_${b.booking_id.slice(0,6)}.pdf`);
+}
+
+/* ── PURCHASES ── */
+let purchaseBookingId = null;
+
+function openPurchasesFromView() {
+  closeView();
+  openPurchases(viewData.booking_id);
+}
+
+function toggleAddItem() {
+  const form = $("pAddForm");
+  form.classList.toggle("hidden");
+  const open = !form.classList.contains("hidden");
+  $("pAddBtn").querySelector("button").textContent = open ? "✖ Cancel" : "➕ Add Item";
+  if (!open) {
+    // reset to add mode
+    editingPurchaseId = null;
+    $("pItem").value = ""; $("pQty").value = 1; $("pPrice").value = "";
+    $("pAddForm").querySelector("button[onclick='addPurchase()']").textContent = "➕ Add";
+  }
+}
+
+async function openPurchases(bookingId) {
+  purchaseBookingId = bookingId;
+  const b = allData.find(x => x.booking_id === bookingId);
+  $("pGuestLabel").textContent = b.guest_name + " · Room " + b.room_no;
+  if (admin) $("pAddBtn").classList.remove("hidden");
+  else $("pAddBtn").classList.add("hidden");
+  $("pAddForm").classList.add("hidden"); // always start collapsed
+  $("pItem").value = ""; $("pQty").value = 1; $("pPrice").value = "";
+  $("purchaseModal").classList.add("show");
+  await loadPurchases();
+}
+function closePurchases() { $("purchaseModal").classList.remove("show"); }
+
+async function loadPurchases() {
+  const res = await fetch(`${API_URL}?action=getPurchases&booking_id=${purchaseBookingId}`);
+  const items = await res.json();
+  renderPurchases(items);
+}
+
+function renderPurchases(items) {
+  const list = $("pList");
+  if (!items.length) {
+    list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px 0;">No purchases yet</p>`;
+    $("pTotal").textContent = "0";
+    return;
+  }
+  let total = 0;
+  list.innerHTML = items.map(it => {
+    const lineTotal = Number(it.qty) * Number(it.unit_price);
+    total += lineTotal;
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;">
+        <div>
+          <span style="font-weight:600;">${it.item_name}</span>
+          <span style="color:var(--text-muted);margin-left:8px;">×${it.qty} @ ₹${Number(it.unit_price).toLocaleString("en-IN")}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-weight:700;color:#6ee7b7;">₹${lineTotal.toLocaleString("en-IN")}</span>
+          ${admin ? `
+            <button class="btn-ghost btn-sm" onclick="startEditPurchase('${it.purchase_id}','${it.item_name.replace(/'/g,"\\'")}',${it.qty},${it.unit_price})">✏️</button>
+            <button class="btn-danger btn-sm" onclick="deletePurchase('${it.purchase_id}')">✕</button>
+          ` : ""}
+        </div>
+      </div>`;
+  }).join("");
+  $("pTotal").textContent = total.toLocaleString("en-IN");
+}
+
+let editingPurchaseId = null;
+
+function startEditPurchase(id, name, qty, price) {
+  editingPurchaseId = id;
+  // Show the add form with existing values
+  $("pAddForm").classList.remove("hidden");
+  $("pAddBtn").querySelector("button").textContent = "✖ Cancel";
+  $("pItem").value = name;
+  $("pQty").value = qty;
+  $("pPrice").value = price;
+  // Change Add button label to Update
+  $("pAddForm").querySelector("button[onclick='addPurchase()']").textContent = "💾 Update";
+}
+
+async function addPurchase() {
+  const item = $("pItem").value.trim();
+  if (!item) return toast("Enter item name", "error");
+  const qty = Number($("pQty").value) || 1;
+  const price = Number($("pPrice").value) || 0;
+
+  if (editingPurchaseId) {
+    // Edit mode
+    const fd = new URLSearchParams({ action: "editPurchase", purchase_id: editingPurchaseId, item_name: item, qty, unit_price: price });
+    const res = await fetch(API_URL, { method: "POST", body: fd });
+    const r = await res.json();
+    if (!r.success) return toast(r.message, "error");
+    toast(`${item} updated`, "success");
+  } else {
+    // Add mode
+    const fd = new URLSearchParams({ action: "addPurchase", booking_id: purchaseBookingId, item_name: item, qty, unit_price: price });
+    const res = await fetch(API_URL, { method: "POST", body: fd });
+    const r = await res.json();
+    if (!r.success) return toast(r.message, "error");
+    toast(`${item} added`, "success");
+  }
+
+  editingPurchaseId = null;
+  $("pItem").value = ""; $("pQty").value = 1; $("pPrice").value = "";
+  $("pAddForm").classList.add("hidden");
+  $("pAddBtn").querySelector("button").textContent = "➕ Add Item";
+  $("pAddForm").querySelector("button[onclick='addPurchase()']").textContent = "➕ Add";
+  await loadPurchases();
+}
+
+async function deletePurchase(purchaseId) {
+  if (!confirm("Remove this item?")) return;
+  const fd = new URLSearchParams({ action: "deletePurchase", purchase_id: purchaseId });
+  await fetch(API_URL, { method: "POST", body: fd });
+  toast("Item removed", "info");
+  await loadPurchases();
+}
 
 /* ── CALENDAR ── */
 let calMonth = new Date().getMonth();
