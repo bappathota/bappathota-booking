@@ -292,71 +292,6 @@
     opacity: .6;
   }
 
-  /* ── GANTT ── */
-  .gantt-section { margin-top: 28px; }
-  .gantt-label {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .07em;
-    color: var(--text-muted);
-    margin-bottom: 12px;
-  }
-  .gantt-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-  .gantt-room-name {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-muted);
-    width: 48px;
-    flex-shrink: 0;
-    text-align: right;
-  }
-  .gantt-track {
-    position: relative;
-    flex: 1;
-    height: 30px;
-    background: rgba(255,255,255,.04);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .gantt-bar {
-    position: absolute;
-    top: 3px;
-    height: calc(100% - 6px);
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
-    font-size: 10px;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    cursor: pointer;
-    transition: filter .15s;
-    min-width: 4px;
-  }
-  .gantt-bar:hover { filter: brightness(1.2); }
-  .gantt-bar.r1 { background: linear-gradient(90deg, #3b82f6, #6366f1); color: #fff; }
-  .gantt-bar.r2 { background: linear-gradient(90deg, #f59e0b, #ef4444); color: #fff; }
-  .gantt-bar.r3 { background: linear-gradient(90deg, #10b981, #3b82f6); color: #fff; }
-
-  .gantt-day-markers {
-    display: flex;
-    margin-left: 58px;
-    margin-bottom: 4px;
-  }
-  .gantt-day-marker {
-    flex: 1;
-    text-align: center;
-    font-size: 9px;
-    color: var(--text-muted);
-    opacity: .5;
-  }
 
   /* ── MODALS ── */
   .modal-overlay {
@@ -521,6 +456,46 @@
   @media (max-width: 600px) {
     .form-row { grid-template-columns: 1fr; }
     .topbar { flex-direction: column; align-items: stretch; }
+
+    /* Calendar mobile fixes */
+    .calendar-section { padding: 14px; }
+    .calendar-title { font-size: 15px; }
+
+    .calendar-weekdays,
+    #calendar { gap: 3px; }
+
+    .calendar-weekday {
+      font-size: 9px;
+      padding: 4px 0;
+      letter-spacing: 0;
+    }
+
+    .calendar-day {
+      padding: 5px 3px;
+      min-height: 60px;
+      border-radius: 7px;
+    }
+
+    .calendar-date {
+      font-size: 11px;
+      margin-bottom: 3px;
+    }
+
+    .calendar-day.today .calendar-date {
+      width: 18px;
+      height: 18px;
+      font-size: 9px;
+    }
+
+    /* On mobile hide "free" chips to save space, only show booked ones */
+    .room-chip.chip-free { display: none; }
+
+    .room-chip {
+      font-size: 9px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      margin-top: 2px;
+    }
   }
 </style>
 </head>
@@ -570,12 +545,6 @@
     </div>
     <div id="calendar"></div>
 
-    <!-- GANTT -->
-    <div class="gantt-section">
-      <div class="gantt-label">📊 Booking Timeline</div>
-      <div class="gantt-day-markers" id="ganttMarkers"></div>
-      <div id="gantt"></div>
-    </div>
   </div>
 
 </div>
@@ -639,6 +608,11 @@
         <input type="date" id="checkout">
       </div>
     </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="desc" rows="2" placeholder="Purpose of visit, special requests…"
+        style="width:100%;padding:10px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;resize:vertical;"></textarea>
+    </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeAdd()">Cancel</button>
       <button class="btn-success" onclick="addBooking()">Confirm Booking</button>
@@ -659,6 +633,14 @@
     <div class="detail-row"><span class="detail-label">Room</span><span class="detail-value" id="vRoom"></span></div>
     <div class="detail-row"><span class="detail-label">Check-in</span><span class="detail-value" id="vIn"></span></div>
     <div class="detail-row"><span class="detail-label">Check-out</span><span class="detail-value" id="vOut"></span></div>
+    <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value" id="vDesc" style="text-align:right;max-width:65%;word-break:break-word;"></span></div>
+    <!-- Admin inline description editor (shown only for current/future bookings) -->
+    <div id="vDescEdit" class="hidden" style="margin-top:12px;">
+      <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);">Edit Description</label>
+      <textarea id="vDescInput" rows="3"
+        style="width:100%;margin-top:6px;padding:10px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;resize:vertical;"></textarea>
+      <button class="btn-success btn-sm" style="margin-top:8px;" onclick="saveDescription()">💾 Save Description</button>
+    </div>
     <div class="modal-actions">
       <button class="btn-primary" onclick="closeView()">Close</button>
     </div>
@@ -697,6 +679,11 @@
         <label>Check-out</label>
         <input id="eOut" type="date">
       </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="eDesc" rows="2"
+        style="width:100%;padding:10px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;resize:vertical;"></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeEdit()">Cancel</button>
@@ -746,7 +733,10 @@ let editData = null;
 let invoiceData = null;
 
 const $ = id => document.getElementById(id);
-const dOnly = d => new Date(d).toISOString().split("T")[0];
+const dOnly = d => {
+  const dt = new Date(d);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+};
 
 /* ── TOAST ── */
 function toast(msg, type = "info") {
@@ -799,7 +789,7 @@ async function addBooking() {
     b.status === "Booked" &&
     b.room_no == rm &&
     ci <= dOnly(b.check_out) &&
-    co >= dOnly(b.check_in)
+    co > dOnly(b.check_in)
   )) return toast("Room already booked for those dates", "error");
 
   const fd = new URLSearchParams({
@@ -809,7 +799,8 @@ async function addBooking() {
     no_of_guests: $("guests").value,
     room_no: rm,
     check_in: ci,
-    check_out: co
+    check_out: co,
+    description: $("desc").value
   });
 
   const res = await fetch(API_URL, { method: "POST", body: fd });
@@ -832,7 +823,7 @@ async function loadAvailability(date) {
       x.status === "Booked" &&
       x.room_no == i &&
       date >= dOnly(x.check_in) &&
-      date <= dOnly(x.check_out)
+      date < dOnly(x.check_out)
     );
 
     let actions = "";
@@ -864,17 +855,47 @@ async function loadAvailability(date) {
 function loadToday() { loadAvailability(dOnly(new Date())); }
 
 /* ── VIEW ── */
+let viewData = null;
 function viewBooking(id) {
-  const b = allData.find(x => x.booking_id === id);
-  $("vGuest").textContent = b.guest_name;
-  $("vPhone").textContent = b.phone;
-  $("vGuests").textContent = b.no_of_guests + " person(s)";
-  $("vRoom").textContent = "Room " + b.room_no;
-  $("vIn").textContent = dOnly(b.check_in);
-  $("vOut").textContent = dOnly(b.check_out);
+  viewData = allData.find(x => x.booking_id === id);
+  $("vGuest").textContent = viewData.guest_name;
+  $("vPhone").textContent = viewData.phone;
+  $("vGuests").textContent = viewData.no_of_guests + " person(s)";
+  $("vRoom").textContent = "Room " + viewData.room_no;
+  $("vIn").textContent = dOnly(viewData.check_in);
+  $("vOut").textContent = dOnly(viewData.check_out);
+  $("vDesc").textContent = viewData.description || "—";
+
+  // Show inline description editor for admin if booking is today or future
+  const today = dOnly(new Date());
+  const isFutureOrCurrent = dOnly(viewData.check_out) >= today;
+  if (admin && isFutureOrCurrent) {
+    $("vDescInput").value = viewData.description || "";
+    $("vDescEdit").classList.remove("hidden");
+  } else {
+    $("vDescEdit").classList.add("hidden");
+  }
+
   $("viewModal").classList.add("show");
 }
 function closeView() { $("viewModal").classList.remove("show"); }
+
+async function saveDescription() {
+  const fd = new URLSearchParams({
+    action: "updateDesc",
+    booking_id: viewData.booking_id,
+    description: $("vDescInput").value
+  });
+  const res = await fetch(API_URL, { method: "POST", body: fd });
+  const r = await res.json();
+  if (!r.success) return toast(r.message || "Failed to save", "error");
+  $("vDesc").textContent = $("vDescInput").value || "—";
+  // Update local cache too
+  viewData.description = $("vDescInput").value;
+  const cached = allData.find(x => x.booking_id === viewData.booking_id);
+  if (cached) cached.description = viewData.description;
+  toast("Description saved", "success");
+}
 
 /* ── EDIT ── */
 function editBooking(id) {
@@ -884,6 +905,7 @@ function editBooking(id) {
   $("eGuests").value = editData.no_of_guests;
   $("eIn").value = dOnly(editData.check_in);
   $("eOut").value = dOnly(editData.check_out);
+  $("eDesc").value = editData.description || "";
   $("editModal").classList.add("show");
 }
 function closeEdit() { $("editModal").classList.remove("show"); }
@@ -896,7 +918,8 @@ function saveEdit() {
     no_of_guests: $("eGuests").value,
     room_no: editData.room_no,
     check_in: $("eIn").value,
-    check_out: $("eOut").value
+    check_out: $("eOut").value,
+    description: $("eDesc").value
   });
   fetch(API_URL, { method: "POST", body: fd }).then(() => {
     closeEdit();
@@ -973,7 +996,7 @@ function renderCalendar() {
     for (let r = 1; r <= TOTAL_ROOMS; r++) {
       const b = allData.find(x =>
         x.status === "Booked" && x.room_no == r &&
-        dateStr >= dOnly(x.check_in) && dateStr <= dOnly(x.check_out)
+        dateStr >= dOnly(x.check_in) && dateStr < dOnly(x.check_out)
       );
       if (b) {
         const name = b.guest_name.split(" ")[0]; // first name only
@@ -992,76 +1015,6 @@ function renderCalendar() {
         <div class="calendar-date">${d}</div>
         ${chips}
       </div>`;
-  }
-
-  renderGantt(totalDays);
-}
-
-function renderGantt(totalDays) {
-  const gantt   = $("gantt");
-  const markers = $("ganttMarkers");
-  gantt.innerHTML   = "";
-  markers.innerHTML = "";
-
-  // Day markers: 1, 8, 15, 22, end
-  [1, 8, 15, 22, totalDays].forEach(d => {
-    const marker = document.createElement("div");
-    marker.className = "gantt-day-marker";
-    marker.style.position = "absolute";
-    marker.style.left = `${((d - 1) / totalDays) * 100}%`;
-    marker.textContent = d;
-    markers.style.position = "relative";
-    markers.appendChild(marker);
-  });
-
-  const roomColors = ["r1", "r2", "r3"];
-
-  for (let r = 1; r <= TOTAL_ROOMS; r++) {
-    const row   = document.createElement("div");
-    row.className = "gantt-row";
-
-    const label = document.createElement("div");
-    label.className = "gantt-room-name";
-    label.textContent = `Room ${r}`;
-
-    const track = document.createElement("div");
-    track.className = "gantt-track";
-
-    // Find all bookings this month for this room
-    const monthStart = `${calYear}-${String(calMonth + 1).padStart(2,"0")}-01`;
-    const monthEnd   = `${calYear}-${String(calMonth + 1).padStart(2,"0")}-${String(totalDays).padStart(2,"0")}`;
-
-    const bookings = allData.filter(b =>
-      b.status === "Booked" && b.room_no == r &&
-      dOnly(b.check_in)  <= monthEnd &&
-      dOnly(b.check_out) >= monthStart
-    );
-
-    bookings.forEach(b => {
-      // Clamp to month boundaries
-      const barStart = Math.max(1, (new Date(Math.max(new Date(b.check_in),  new Date(monthStart)))).getDate());
-      const barEnd   = Math.min(totalDays, (new Date(Math.min(new Date(b.check_out), new Date(monthEnd)))).getDate());
-
-      const leftPct  = ((barStart - 1) / totalDays) * 100;
-      const widthPct = Math.max(((barEnd - barStart + 1) / totalDays) * 100, 0.5);
-
-      const bar = document.createElement("div");
-      bar.className = `gantt-bar ${roomColors[(r - 1) % roomColors.length]}`;
-      bar.style.left  = `${leftPct}%`;
-      bar.style.width = `${widthPct}%`;
-      bar.title = `${b.guest_name} · ${dOnly(b.check_in)} → ${dOnly(b.check_out)}`;
-      bar.textContent = widthPct > 5 ? b.guest_name.split(" ")[0] : "";
-      bar.onclick = () => viewBooking(b.booking_id);
-      track.appendChild(bar);
-    });
-
-    if (bookings.length === 0) {
-      track.style.opacity = ".4";
-    }
-
-    row.appendChild(label);
-    row.appendChild(track);
-    gantt.appendChild(row);
   }
 }
 
