@@ -1,63 +1,1309 @@
-/* ==============================
-   INVOICE MODULE – BAPPATHOTA
-   ============================== */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BappaThota Homestay</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #3b82f6;
+    --primary-dark: #1d4ed8;
+    --success: #10b981;
+    --success-dark: #059669;
+    --danger: #ef4444;
+    --danger-dark: #dc2626;
+    --warning: #f59e0b;
+    --warning-dark: #d97706;
+    --bg: #0f172a;
+    --card: rgba(255,255,255,0.07);
+    --card-border: rgba(255,255,255,0.12);
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --radius: 16px;
+    --shadow: 0 20px 60px rgba(0,0,0,.4);
+  }
 
-async function invoice(bookingId) {
-  try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    const b = data.find(x => x.booking_id === bookingId);
-    if (!b) {
-      alert("Booking not found");
-      return;
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 20% 20%, rgba(59,130,246,.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(16,185,129,.1) 0%, transparent 50%),
+      url("https://raw.githubusercontent.com/bappathota/Homestay/main/Image.jpeg");
+    background-size: cover;
+    background-blend-mode: overlay;
+    background-attachment: fixed;
+    color: var(--text);
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    padding: 48px 20px 32px;
+  }
+  .header-badge {
+    display: inline-block;
+    background: rgba(59,130,246,.2);
+    border: 1px solid rgba(59,130,246,.4);
+    color: #93c5fd;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 100px;
+    margin-bottom: 14px;
+  }
+  .header h1 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    background: linear-gradient(135deg, #fff 30%, #93c5fd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+  }
+  .header p {
+    color: var(--text-muted);
+    margin-top: 10px;
+    font-size: 15px;
+  }
+
+  /* ── CONTAINER ── */
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+  }
+
+  /* ── GLASS CARD ── */
+  .glass {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  .topbar-left { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ── BUTTONS ── */
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    padding: 10px 18px;
+    transition: all .18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  button:active { transform: scale(.97); }
+
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-dark); box-shadow: 0 6px 20px rgba(59,130,246,.35); }
+
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-success:hover { background: var(--success-dark); box-shadow: 0 6px 20px rgba(16,185,129,.35); }
+
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: var(--danger-dark); box-shadow: 0 6px 20px rgba(239,68,68,.35); }
+
+  .btn-warning { background: var(--warning); color: #fff; }
+  .btn-warning:hover { background: var(--warning-dark); }
+
+  .btn-ghost {
+    background: rgba(255,255,255,.08);
+    color: var(--text);
+    border: 1px solid var(--card-border);
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,.14); }
+
+  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+
+  .hidden { display: none !important; }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+
+  /* ── ROOM CARDS ── */
+  .rooms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .room-card {
+    padding: 22px;
+    border-radius: var(--radius);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transition: transform .2s, box-shadow .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .room-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: .06;
+    pointer-events: none;
+  }
+  .room-card.booked { background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.25); }
+  .room-card.booked::before { background: var(--danger); }
+  .room-card.available { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.25); }
+  .room-card.available::before { background: var(--success); }
+  .room-card:hover { transform: translateY(-3px); box-shadow: 0 16px 40px rgba(0,0,0,.3); }
+
+  .room-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .room-number { font-size: 18px; font-weight: 700; }
+
+  .status-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 100px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .status-badge.booked { background: rgba(239,68,68,.25); color: #fca5a5; border: 1px solid rgba(239,68,68,.4); }
+  .status-badge.available { background: rgba(16,185,129,.25); color: #6ee7b7; border: 1px solid rgba(16,185,129,.4); }
+
+  .room-guest { color: var(--text-muted); font-size: 13px; margin-bottom: 6px; }
+  .room-guest span { color: var(--text); font-weight: 600; }
+  .room-dates { color: var(--text-muted); font-size: 12px; margin-bottom: 14px; }
+
+  .room-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── CALENDAR ── */
+  .calendar-section { margin-top: 10px; padding: 24px; }
+  .calendar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .calendar-title { font-size: 18px; font-weight: 700; }
+
+  .calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .calendar-weekday {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-muted);
+    padding: 6px 0;
+  }
+
+  #calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .calendar-day {
+    border-radius: 10px;
+    padding: 8px 6px;
+    min-height: 90px;
+    font-size: 11px;
+    border: 1px solid var(--card-border);
+    background: rgba(255,255,255,.03);
+    transition: box-shadow .15s;
+    cursor: default;
+    display: flex;
+    flex-direction: column;
+  }
+  .calendar-day.today { border-color: var(--primary) !important; box-shadow: 0 0 0 2px rgba(59,130,246,.3); }
+  .calendar-day.empty { background: transparent; border-color: transparent; pointer-events: none; }
+
+  .calendar-date {
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 5px;
+    color: var(--text);
+  }
+  .calendar-day.today .calendar-date {
+    background: var(--primary);
+    color: #fff;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+  }
+
+  /* Per-room chips */
+  .room-chip {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 6px;
+    border-radius: 5px;
+    margin-top: 3px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+  }
+  .room-chip.chip-booked {
+    background: rgba(239,68,68,.28);
+    color: #fca5a5;
+    border: 1px solid rgba(239,68,68,.35);
+    cursor: pointer;
+  }
+  .room-chip.chip-booked:hover { background: rgba(239,68,68,.45); }
+  .room-chip.chip-free {
+    background: rgba(16,185,129,.1);
+    color: #6ee7b7;
+    border: 1px solid rgba(16,185,129,.18);
+    opacity: .6;
+  }
+
+
+  /* ── MODALS ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .modal-overlay.show { display: flex; animation: fadeIn .2s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+  .modal {
+    background: #1e2d40;
+    border: 1px solid rgba(255,255,255,.1);
+    padding: 28px;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 40px 80px rgba(0,0,0,.5);
+    animation: slideUp .22s ease;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .modal-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .modal-icon.blue { background: rgba(59,130,246,.2); }
+  .modal-icon.green { background: rgba(16,185,129,.2); }
+  .modal-icon.orange { background: rgba(245,158,11,.2); }
+
+  .modal h3 { font-size: 18px; font-weight: 700; }
+
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .form-group input,
+  .form-group select {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .form-group input:focus,
+  .form-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.2);
+  }
+  .form-group select option { background: #1e2d40; color: var(--text); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+    justify-content: flex-end;
+  }
+
+  /* ── DETAIL ROWS ── */
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    font-size: 14px;
+  }
+  .detail-row:last-of-type { border-bottom: none; }
+  .detail-label { color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .detail-value { font-weight: 600; }
+
+  /* ── INVOICE ── */
+  .invoice-total {
+    background: rgba(16,185,129,.1);
+    border: 1px solid rgba(16,185,129,.25);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    margin-top: 16px;
+  }
+  .invoice-total .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+  .invoice-total .amount { font-size: 32px; font-weight: 800; color: #6ee7b7; margin-top: 4px; }
+
+  /* ── TOAST ── */
+  #toast-container {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 9999;
+  }
+  .toast {
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: 0 8px 30px rgba(0,0,0,.4);
+    animation: toastIn .25s ease, toastOut .25s ease 2.75s forwards;
+    max-width: 320px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(10px); } }
+  .toast.success { background: #065f46; border: 1px solid rgba(16,185,129,.4); }
+  .toast.error   { background: #7f1d1d; border: 1px solid rgba(239,68,68,.4); }
+  .toast.info    { background: #1e3a5f; border: 1px solid rgba(59,130,246,.4); }
+
+  /* ── LOADING SKELETON ── */
+  .skeleton {
+    background: linear-gradient(90deg, rgba(255,255,255,.05) 25%, rgba(255,255,255,.1) 50%, rgba(255,255,255,.05) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+  }
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+  /* ── PRINT ── */
+  @media print {
+    body { background: #fff !important; color: #000 !important; }
+    .modal-overlay { position: static; background: none; display: block; }
+    .modal { background: #fff; color: #000; border: 1px solid #ddd; box-shadow: none; }
+    .modal-actions { display: none; }
+    :not(#invoiceModal) { display: none !important; }
+    #invoiceModal { display: block !important; }
+  }
+
+  @media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+    .topbar { flex-direction: column; align-items: stretch; }
+
+    /* Calendar mobile fixes */
+    .calendar-section { padding: 14px; }
+    .calendar-title { font-size: 15px; }
+
+    .calendar-weekdays,
+    #calendar { gap: 3px; }
+
+    .calendar-weekday {
+      font-size: 9px;
+      padding: 4px 0;
+      letter-spacing: 0;
     }
 
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF();
+    .calendar-day {
+      padding: 5px 3px;
+      min-height: 60px;
+      border-radius: 7px;
+    }
 
-    /* HEADER */
-    pdf.setFontSize(18);
-    pdf.text("BappaThota Homestay", 20, 20);
+    .calendar-date {
+      font-size: 11px;
+      margin-bottom: 3px;
+    }
 
-    pdf.setFontSize(11);
-    pdf.text("Booking Invoice", 20, 30);
+    .calendar-day.today .calendar-date {
+      width: 18px;
+      height: 18px;
+      font-size: 9px;
+    }
 
-    pdf.line(20, 33, 190, 33);
+    /* On mobile hide "free" chips to save space, only show booked ones */
+    .room-chip.chip-free { display: block; font-size: 8px; padding: 1px 3px; opacity: .5; }
 
-    /* BODY */
-    let y = 45;
-    pdf.text(`Guest Name : ${b.guest_name}`, 20, y); y += 8;
-    pdf.text(`Phone      : ${b.phone || "-"}`, 20, y); y += 8;
-    pdf.text(`Room No    : ${b.room_no}`, 20, y); y += 8;
-    pdf.text(`Guests     : ${b.no_of_guests}`, 20, y); y += 8;
-    pdf.text(`Check-in   : ${formatDate(b.check_in)}`, 20, y); y += 8;
-    pdf.text(`Check-out  : ${formatDate(b.check_out)}`, 20, y); y += 12;
+    .room-chip {
+      font-size: 9px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      margin-top: 2px;
+    }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
 
-    pdf.line(20, y, 190, y);
-    y += 10;
+<body>
 
-    /* FOOTER */
-    pdf.setFontSize(10);
-    pdf.text("Thank you for choosing BappaThota Homestay", 20, y);
-    y += 8;
-    pdf.text("Contact: +91-XXXXXXXXXX", 20, y);
+<!-- HEADER -->
+<div class="header">
+  <div class="header-badge">🏡 Homestay Management</div>
+  <h1>BappaThota Homestay</h1>
+  <p>Premium guest experience & booking management</p>
+</div>
 
-    /* SAVE */
-    const fileName = `Invoice_${b.guest_name}_${b.booking_id.slice(0,6)}.pdf`;
-    pdf.save(fileName);
+<div class="container">
 
-  } catch (err) {
-    console.error(err);
-    alert("Failed to generate invoice");
+  <!-- TOP BAR -->
+  <div class="glass topbar">
+    <div class="topbar-left">
+      <button id="adminLoginBtn" class="btn-primary">🔐 Admin Login</button>
+      <button id="addBookingBtn" class="btn-success hidden">➕ Add Booking</button>
+    </div>
+    <button id="calendarBtn" class="btn-ghost">📅 Monthly Calendar</button>
+  </div>
+
+  <!-- ROOM CARDS -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+    <p class="section-title" style="margin:0;">Availability</p>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="btn-ghost btn-sm" onclick="changeDay(-1)">⬅</button>
+      <input type="date" id="availDate"
+        style="padding:7px 12px;background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:10px;color:var(--text);font-family:inherit;font-size:13px;font-weight:600;">
+      <button class="btn-ghost btn-sm" onclick="changeDay(1)">➡</button>
+      <button class="btn-ghost btn-sm" onclick="goToday()">Today</button>
+    </div>
+  </div>
+  <div class="rooms-grid" id="roomsGrid">
+    <div class="room-card glass"><div class="skeleton" style="height:100px;"></div></div>
+    <div class="room-card glass"><div class="skeleton" style="height:100px;"></div></div>
+  </div>
+
+  <!-- CALENDAR -->
+  <div id="calendarWrapper" class="hidden glass calendar-section">
+    <div class="calendar-nav">
+      <button class="btn-ghost btn-sm" onclick="changeMonth(-1)">⬅ Prev</button>
+      <span class="calendar-title" id="monthLabel"></span>
+      <button class="btn-ghost btn-sm" onclick="changeMonth(1)">Next ➡</button>
+    </div>
+    <div class="calendar-weekdays">
+      <div class="calendar-weekday">Sun</div>
+      <div class="calendar-weekday">Mon</div>
+      <div class="calendar-weekday">Tue</div>
+      <div class="calendar-weekday">Wed</div>
+      <div class="calendar-weekday">Thu</div>
+      <div class="calendar-weekday">Fri</div>
+      <div class="calendar-weekday">Sat</div>
+    </div>
+    <div id="calendar"></div>
+
+  </div>
+
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- ADMIN MODAL -->
+<div id="adminModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon blue">🔐</div>
+      <div><h3>Admin Login</h3><p style="color:var(--text-muted);font-size:12px;margin-top:2px">Enter your 4-digit PIN</p></div>
+    </div>
+    <div class="form-group">
+      <label>PIN</label>
+      <input id="adminPin" type="password" maxlength="4" placeholder="••••">
+      <div id="adminError" style="color:#fca5a5;font-size:12px;margin-top:6px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeAdmin()">Cancel</button>
+      <button class="btn-primary" onclick="verifyAdmin()">Login →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD BOOKING MODAL -->
+<div id="addModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon green">➕</div>
+      <div><h3>Add Booking</h3><p style="color:var(--text-muted);font-size:12px;margin-top:2px">Fill guest details below</p></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Guest Name</label>
+        <input id="guest" placeholder="Full name">
+      </div>
+      <div class="form-group">
+        <label>Phone (10 digits)</label>
+        <input id="phone" placeholder="9876543210">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>No. of Guests (max 4)</label>
+        <input id="guests" type="number" min="1" max="4" placeholder="1–4">
+      </div>
+      <div class="form-group">
+        <label>Room</label>
+        <select id="room"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Check-in</label>
+        <input type="date" id="checkin">
+      </div>
+      <div class="form-group">
+        <label>Check-out</label>
+        <input type="date" id="checkout">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="desc" rows="2" placeholder="Purpose of visit, special requests…"
+        style="width:100%;padding:10px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;resize:vertical;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeAdd()">Cancel</button>
+      <button class="btn-success" onclick="addBooking()">Confirm Booking</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW MODAL -->
+<div id="viewModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon blue">👤</div>
+      <div><h3>Booking Details</h3></div>
+    </div>
+    <div class="detail-row"><span class="detail-label">Guest</span><span class="detail-value" id="vGuest"></span></div>
+    <div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value" id="vPhone"></span></div>
+    <div class="detail-row"><span class="detail-label">Guests</span><span class="detail-value" id="vGuests"></span></div>
+    <div class="detail-row"><span class="detail-label">Room</span><span class="detail-value" id="vRoom"></span></div>
+    <div class="detail-row"><span class="detail-label">Check-in</span><span class="detail-value" id="vIn"></span></div>
+    <div class="detail-row"><span class="detail-label">Check-out</span><span class="detail-value" id="vOut"></span></div>
+    <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value" id="vDesc" style="text-align:right;max-width:65%;word-break:break-word;"></span></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="closeView()">Close</button>
+      <button id="vEditBtn" class="btn-warning hidden" onclick="openEditFromView()">✏️ Edit Booking</button>
+      <button id="vPurchaseBtn" class="btn-success hidden" onclick="openPurchasesFromView()">🛒 Purchases</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon orange">✏️</div>
+      <div><h3>Edit Booking</h3></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Guest Name</label>
+        <input id="eGuest">
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input id="ePhone">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>No. of Guests</label>
+        <input id="eGuests" type="number" min="1" max="4">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Check-in</label>
+        <input id="eIn" type="date">
+      </div>
+      <div class="form-group">
+        <label>Check-out</label>
+        <input id="eOut" type="date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="eDesc" rows="2"
+        style="width:100%;padding:10px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;resize:vertical;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeEdit()">Cancel</button>
+      <button class="btn-success" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVOICE MODAL -->
+<div id="invoiceModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon green">🧾</div>
+      <div><h3>Invoice</h3></div>
+    </div>
+    <div class="detail-row"><span class="detail-label">Guest</span><span class="detail-value" id="iGuest"></span></div>
+    <div class="detail-row"><span class="detail-label">Room</span><span class="detail-value" id="iRoom"></span></div>
+    <div class="detail-row"><span class="detail-label">Nights</span><span class="detail-value" id="iNights"></span></div>
+    <div class="detail-row"><span class="detail-label">Purchases Total</span><span class="detail-value" style="color:#6ee7b7;">₹ <span id="iPurchaseTotal">0</span></span></div>
+    <div class="form-row" style="margin-top:14px;">
+      <div class="form-group">
+        <label>Cost per night (₹)</label>
+        <input id="iRate" type="number" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Extra charges (₹)</label>
+        <input id="iExtra" type="number" value="0">
+      </div>
+    </div>
+    <div class="invoice-total">
+      <div class="label">Total Amount</div>
+      <div class="amount">₹ <span id="iTotal">0</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeInvoice()">Close</button>
+      <button class="btn-success" onclick="downloadInvoicePDF()">📄 Download PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- PURCHASES MODAL -->
+<div id="purchaseModal" class="modal-overlay">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <div class="modal-icon green">🛒</div>
+      <div><h3>Purchases</h3><p style="color:var(--text-muted);font-size:12px;margin-top:2px" id="pGuestLabel"></p></div>
+    </div>
+
+    <!-- Add item button (admin only) -->
+    <div id="pAddBtn" class="hidden" style="margin-bottom:10px;">
+      <button class="btn-success" style="width:100%;padding:10px;" onclick="toggleAddItem()">➕ Add Item</button>
+    </div>
+
+    <!-- Add item form (admin only, toggled) -->
+    <div id="pAddForm" class="hidden">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Item</label>
+          <input id="pItem" placeholder="e.g. Water bottle">
+        </div>
+        <div class="form-group">
+          <label>Qty</label>
+          <input id="pQty" type="number" min="1" value="1" placeholder="1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Unit Price (₹)</label>
+          <input id="pPrice" type="number" min="0" placeholder="0">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;">
+          <button class="btn-success" style="width:100%" onclick="addPurchase()">➕ Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items list -->
+    <div id="pList" style="margin-top:12px;max-height:220px;overflow-y:auto;"></div>
+
+    <!-- Total -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);">
+      <span style="font-size:13px;color:var(--text-muted);font-weight:600;">PURCHASES TOTAL</span>
+      <span style="font-size:20px;font-weight:800;color:#6ee7b7;">₹ <span id="pTotal">0</span></span>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closePurchases()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbyNAx2Tuc3tn2pLg3OVBJ2Cu5iRPn7EnQ-QrscSUC1JQ9s6hgpTecJiZQuS4M3TYRCJ3g/exec";
+const TOTAL_ROOMS = 2;
+
+let admin = false;
+let allData = [];
+let editData = null;
+let invoiceData = null;
+
+const $ = id => document.getElementById(id);
+const dOnly = d => {
+  const dt = new Date(d);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+};
+
+/* ── TOAST ── */
+function toast(msg, type = "info") {
+  const icons = { success: "✅", error: "❌", info: "ℹ️" };
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+  $("toast-container").appendChild(el);
+  setTimeout(() => el.remove(), 3100);
+}
+
+/* ── ADMIN ── */
+$("adminLoginBtn").onclick = () => { $("adminPin").value = ""; $("adminError").textContent = ""; $("adminModal").classList.add("show"); };
+function closeAdmin() { $("adminModal").classList.remove("show"); }
+function verifyAdmin() {
+  fetch(`${API_URL}?action=verifyAdmin&pin=${$("adminPin").value}`)
+    .then(r => r.json())
+    .then(res => {
+      if (!res.success) { $("adminError").textContent = "❌ Invalid PIN"; return; }
+      admin = true;
+      $("adminLoginBtn").classList.add("hidden");
+      $("addBookingBtn").classList.remove("hidden");
+      closeAdmin();
+      toast("Admin access granted", "success");
+      loadToday();
+    }).catch(() => toast("Network error", "error"));
+}
+
+/* ── INIT ── */
+function initRooms() {
+  for (let i = 1; i <= TOTAL_ROOMS; i++)
+    $("room").innerHTML += `<option value="${i}">Room ${i}</option>`;
+}
+
+/* ── ADD ── */
+$("addBookingBtn").onclick = () => { $("addModal").classList.add("show"); };
+function closeAdd() { $("addModal").classList.remove("show"); }
+
+async function addBooking() {
+  if (!/^\d{10}$/.test($("phone").value)) return toast("Invalid phone number (10 digits required)", "error");
+  if ($("guests").value > 4) return toast("Maximum 4 guests allowed", "error");
+
+  const ci = $("checkin").value;
+  const co = $("checkout").value;
+  const rm = $("room").value;
+
+  if (!ci || !co || ci >= co) return toast("Invalid check-in / check-out dates", "error");
+
+  if (allData.some(b =>
+    b.status === "Booked" &&
+    b.room_no == rm &&
+    ci <= dOnly(b.check_out) &&
+    co > dOnly(b.check_in)
+  )) return toast("Room already booked for those dates", "error");
+
+  const fd = new URLSearchParams({
+    action: "add",
+    guest_name: $("guest").value,
+    phone: $("phone").value,
+    no_of_guests: $("guests").value,
+    room_no: rm,
+    check_in: ci,
+    check_out: co,
+    description: $("desc").value
+  });
+
+  const res = await fetch(API_URL, { method: "POST", body: fd });
+  const r = await res.json();
+  if (!r.success) return toast(r.message, "error");
+
+  closeAdd();
+  toast("Booking confirmed!", "success");
+  loadToday();
+}
+
+/* ── LOAD ── */
+async function loadAvailability(date, forceRefresh = false) {
+  if (!allData.length || forceRefresh) {
+    allData = await fetch(API_URL).then(r => r.json());
+  }
+  renderAvailability(date);
+}
+
+function renderAvailability(date) {
+  const grid = $("roomsGrid");
+  grid.innerHTML = "";
+
+  for (let i = 1; i <= TOTAL_ROOMS; i++) {
+    const b = allData.find(x =>
+      x.status === "Booked" &&
+      x.room_no == i &&
+      date >= dOnly(x.check_in) &&
+      date < dOnly(x.check_out)
+    );
+
+    let actions = "";
+    if (b) {
+      actions += `<button class="btn-primary btn-sm" onclick="viewBooking('${b.booking_id}')">👁 View</button>
+                  <button class="btn-success btn-sm" onclick="openInvoice('${b.booking_id}')">🧾 Invoice</button>`;
+      if (admin) {
+        actions += `<button class="btn-warning btn-sm" onclick="editBooking('${b.booking_id}')">✏️ Edit</button>
+                    <button class="btn-danger btn-sm" onclick="cancelBooking('${b.booking_id}')">✖ Cancel</button>`;
+      }
+    }
+
+    const dateInfo = b
+      ? `<div class="room-guest">Guest: <span>${b.guest_name}</span></div>
+         <div class="room-dates">📅 ${dOnly(b.check_in)} → ${dOnly(b.check_out)}</div>`
+      : `<div class="room-guest" style="color:var(--text-muted);margin-bottom:14px;">No active booking</div>`;
+
+    grid.innerHTML += `
+      <div class="room-card ${b ? 'booked' : 'available'}">
+        <div class="room-header">
+          <span class="room-number">🚪 Room ${i}</span>
+          <span class="status-badge ${b ? 'booked' : 'available'}">${b ? '● Booked' : '● Available'}</span>
+        </div>
+        ${dateInfo}
+        <div class="room-actions">${actions || '<span style="color:var(--text-muted);font-size:12px;">Free today</span>'}</div>
+      </div>`;
+  }
+}
+function loadToday() {
+  const today = dOnly(new Date());
+  $("availDate").value = today;
+  loadAvailability(today, true); // force refresh on initial load
+}
+
+function changeDay(step) {
+  const d = new Date($("availDate").value);
+  d.setDate(d.getDate() + step);
+  const ds = dOnly(d);
+  $("availDate").value = ds;
+  renderAvailability(ds); // use cached data — instant!
+}
+
+function goToday() {
+  const today = dOnly(new Date());
+  $("availDate").value = today;
+  renderAvailability(today); // use cached data — instant!
+}
+
+$("availDate").onchange = () => renderAvailability($("availDate").value);
+
+/* ── VIEW ── */
+let viewData = null;
+function viewBooking(id) {
+  viewData = allData.find(x => x.booking_id === id);
+  $("vGuest").textContent = viewData.guest_name;
+  $("vPhone").textContent = viewData.phone;
+  $("vGuests").textContent = viewData.no_of_guests + " person(s)";
+  $("vRoom").textContent = "Room " + viewData.room_no;
+  $("vIn").textContent = dOnly(viewData.check_in);
+  $("vOut").textContent = dOnly(viewData.check_out);
+  $("vDesc").textContent = viewData.description || "—";
+
+  // Show inline description editor for admin if booking is today or future
+  const today = dOnly(new Date());
+  const isFutureOrCurrent = dOnly(viewData.check_out) >= today;
+  if (admin && isFutureOrCurrent) {
+    $("vEditBtn").classList.remove("hidden");
+  } else {
+    $("vEditBtn").classList.add("hidden");
+  }
+  if (admin) {
+    $("vPurchaseBtn").classList.remove("hidden");
+  } else {
+    $("vPurchaseBtn").classList.add("hidden");
+  }
+
+  $("viewModal").classList.add("show");
+}
+function closeView() { $("viewModal").classList.remove("show"); }
+
+function openEditFromView() {
+  closeView();
+  editBooking(viewData.booking_id);
+}
+
+async function saveDescription() {
+  const fd = new URLSearchParams({
+    action: "updateDesc",
+    booking_id: viewData.booking_id,
+    description: $("vDescInput").value
+  });
+  const res = await fetch(API_URL, { method: "POST", body: fd });
+  const r = await res.json();
+  if (!r.success) return toast(r.message || "Failed to save", "error");
+  $("vDesc").textContent = $("vDescInput").value || "—";
+  // Update local cache too
+  viewData.description = $("vDescInput").value;
+  const cached = allData.find(x => x.booking_id === viewData.booking_id);
+  if (cached) cached.description = viewData.description;
+  toast("Description saved", "success");
+}
+
+/* ── EDIT ── */
+function editBooking(id) {
+  editData = allData.find(x => x.booking_id === id);
+  $("eGuest").value = editData.guest_name;
+  $("ePhone").value = editData.phone;
+  $("eGuests").value = editData.no_of_guests;
+  $("eIn").value = dOnly(editData.check_in);
+  $("eOut").value = dOnly(editData.check_out);
+  $("eDesc").value = editData.description || "";
+  $("editModal").classList.add("show");
+}
+function closeEdit() { $("editModal").classList.remove("show"); }
+function saveEdit() {
+  const fd = new URLSearchParams({
+    action: "update",
+    booking_id: editData.booking_id,
+    guest_name: $("eGuest").value,
+    phone: $("ePhone").value,
+    no_of_guests: $("eGuests").value,
+    room_no: editData.room_no,
+    check_in: $("eIn").value,
+    check_out: $("eOut").value,
+    description: $("eDesc").value
+  });
+  fetch(API_URL, { method: "POST", body: fd }).then(() => {
+    closeEdit();
+    toast("Booking updated", "success");
+    loadToday();
+  });
+}
+
+/* ── CANCEL ── */
+function cancelBooking(id) {
+  if (!confirm("Are you sure you want to cancel this booking?")) return;
+  fetch(API_URL, { method: "POST", body: new URLSearchParams({ action: "cancel", booking_id: id }) })
+    .then(() => { toast("Booking cancelled", "info"); loadToday(); });
+}
+
+/* ── INVOICE ── */
+async function openInvoice(id) {
+  invoiceData = allData.find(x => x.booking_id === id);
+  const nights = Math.max(1, (new Date(invoiceData.check_out) - new Date(invoiceData.check_in)) / 86400000);
+  $("iGuest").textContent = invoiceData.guest_name;
+  $("iRoom").textContent = "Room " + invoiceData.room_no;
+  $("iNights").textContent = nights + " night(s)";
+  $("iRate").value = "";
+  $("iExtra").value = 0;
+  $("iTotal").textContent = 0;
+
+  // Fetch purchases total
+  let purchasesTotal = 0;
+  try {
+    const res = await fetch(`${API_URL}?action=getPurchases&booking_id=${id}`);
+    const items = await res.json();
+    purchasesTotal = items.reduce((s, it) => s + Number(it.qty) * Number(it.unit_price), 0);
+  } catch(e) {}
+  $("iPurchaseTotal").textContent = purchasesTotal.toLocaleString("en-IN");
+
+  $("invoiceModal").classList.add("show");
+
+  const calc = () => {
+    const roomTotal = Number($("iRate").value || 0) * nights;
+    const extra = Number($("iExtra").value || 0);
+    $("iTotal").textContent = (roomTotal + extra + purchasesTotal).toLocaleString("en-IN");
+  };
+  $("iRate").oninput = calc;
+  $("iExtra").oninput = calc;
+}
+function closeInvoice() { $("invoiceModal").classList.remove("show"); }
+
+async function downloadInvoicePDF() {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+  const b = invoiceData;
+  const nights = Math.max(1, (new Date(b.check_out) - new Date(b.check_in)) / 86400000);
+  const rate   = Number($("iRate").value || 0);
+  const extra  = Number($("iExtra").value || 0);
+  const purTotal = Number($("iPurchaseTotal").textContent.replace(/,/g,"")) || 0;
+  const total  = (rate * nights) + extra + purTotal;
+
+  const fmt = d => new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" });
+
+  // Header
+  pdf.setFontSize(20); pdf.setFont("helvetica","bold");
+  pdf.text("BappaThota Homestay", 20, 22);
+  pdf.setFontSize(11); pdf.setFont("helvetica","normal");
+  pdf.setTextColor(100);
+  pdf.text("Booking Invoice", 20, 30);
+  pdf.setTextColor(0);
+  pdf.setLineWidth(0.5); pdf.line(20, 34, 190, 34);
+
+  // Guest details
+  let y = 46;
+  const row = (label, val) => {
+    pdf.setFont("helvetica","bold"); pdf.text(label, 20, y);
+    pdf.setFont("helvetica","normal"); pdf.text(String(val), 90, y);
+    y += 9;
+  };
+  row("Guest Name :", b.guest_name);
+  row("Phone :", b.phone || "-");
+  row("Room No :", "Room " + b.room_no);
+  row("No. of Guests :", b.no_of_guests);
+  row("Check-in :", fmt(b.check_in));
+  row("Check-out :", fmt(b.check_out));
+
+  y += 4; pdf.line(20, y, 190, y); y += 10;
+
+  // Charges
+  pdf.setFont("helvetica","bold"); pdf.text("Charges", 20, y); y += 9;
+  pdf.setFont("helvetica","normal");
+  if (rate) { pdf.text(`Room (${nights} night(s) × ₹${rate})`, 25, y); pdf.text(`₹ ${(rate*nights).toLocaleString("en-IN")}`, 160, y); y += 8; }
+  if (purTotal) { pdf.text("Purchases", 25, y); pdf.text(`₹ ${purTotal.toLocaleString("en-IN")}`, 160, y); y += 8; }
+  if (extra) { pdf.text("Extra charges", 25, y); pdf.text(`₹ ${extra.toLocaleString("en-IN")}`, 160, y); y += 8; }
+
+  y += 4; pdf.setLineWidth(0.3); pdf.line(20, y, 190, y); y += 10;
+  pdf.setFontSize(14); pdf.setFont("helvetica","bold");
+  pdf.text("Total", 20, y); pdf.text(`₹ ${total.toLocaleString("en-IN")}`, 160, y);
+
+  // Footer
+  y += 20; pdf.setFontSize(10); pdf.setFont("helvetica","normal"); pdf.setTextColor(120);
+  pdf.text("Thank you for choosing BappaThota Homestay!", 20, y);
+
+  pdf.save(`Invoice_${b.guest_name.replace(/ /g,"_")}_${b.booking_id.slice(0,6)}.pdf`);
+}
+
+/* ── PURCHASES ── */
+let purchaseBookingId = null;
+
+function openPurchasesFromView() {
+  closeView();
+  openPurchases(viewData.booking_id);
+}
+
+function toggleAddItem() {
+  const form = $("pAddForm");
+  form.classList.toggle("hidden");
+  const open = !form.classList.contains("hidden");
+  $("pAddBtn").querySelector("button").textContent = open ? "✖ Cancel" : "➕ Add Item";
+  if (!open) {
+    // reset to add mode
+    editingPurchaseId = null;
+    $("pItem").value = ""; $("pQty").value = 1; $("pPrice").value = "";
+    $("pAddForm").querySelector("button[onclick='addPurchase()']").textContent = "➕ Add";
   }
 }
 
-/* Date formatter (shared-safe) */
-function formatDate(d) {
-  return new Date(d).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  });
+async function openPurchases(bookingId) {
+  purchaseBookingId = bookingId;
+  const b = allData.find(x => x.booking_id === bookingId);
+  $("pGuestLabel").textContent = b.guest_name + " · Room " + b.room_no;
+  if (admin) $("pAddBtn").classList.remove("hidden");
+  else $("pAddBtn").classList.add("hidden");
+  $("pAddForm").classList.add("hidden"); // always start collapsed
+  $("pItem").value = ""; $("pQty").value = 1; $("pPrice").value = "";
+  $("purchaseModal").classList.add("show");
+  await loadPurchases();
 }
+function closePurchases() { $("purchaseModal").classList.remove("show"); }
+
+async function loadPurchases() {
+  const res = await fetch(`${API_URL}?action=getPurchases&booking_id=${purchaseBookingId}`);
+  const items = await res.json();
+  renderPurchases(items);
+}
+
+function renderPurchases(items) {
+  const list = $("pList");
+  if (!items.length) {
+    list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px 0;">No purchases yet</p>`;
+    $("pTotal").textContent = "0";
+    return;
+  }
+  let total = 0;
+  list.innerHTML = items.map(it => {
+    const lineTotal = Number(it.qty) * Number(it.unit_price);
+    total += lineTotal;
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;">
+        <div>
+          <span style="font-weight:600;">${it.item_name}</span>
+          <span style="color:var(--text-muted);margin-left:8px;">×${it.qty} @ ₹${Number(it.unit_price).toLocaleString("en-IN")}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-weight:700;color:#6ee7b7;">₹${lineTotal.toLocaleString("en-IN")}</span>
+          ${admin ? `
+            <button class="btn-ghost btn-sm" onclick="startEditPurchase('${it.purchase_id}','${it.item_name.replace(/'/g,"\\'")}',${it.qty},${it.unit_price})">✏️</button>
+            <button class="btn-danger btn-sm" onclick="deletePurchase('${it.purchase_id}')">✕</button>
+          ` : ""}
+        </div>
+      </div>`;
+  }).join("");
+  $("pTotal").textContent = total.toLocaleString("en-IN");
+}
+
+let editingPurchaseId = null;
+
+function startEditPurchase(id, name, qty, price) {
+  editingPurchaseId = id;
+  // Show the add form with existing values
+  $("pAddForm").classList.remove("hidden");
+  $("pAddBtn").querySelector("button").textContent = "✖ Cancel";
+  $("pItem").value = name;
+  $("pQty").value = qty;
+  $("pPrice").value = price;
+  // Change Add button label to Update
+  $("pAddForm").querySelector("button[onclick='addPurchase()']").textContent = "💾 Update";
+}
+
+async function addPurchase() {
+  const item = $("pItem").value.trim();
+  if (!item) return toast("Enter item name", "error");
+  const qty = Number($("pQty").value) || 1;
+  const price = Number($("pPrice").value) || 0;
+
+  if (editingPurchaseId) {
+    // Edit mode
+    const fd = new URLSearchParams({ action: "editPurchase", purchase_id: editingPurchaseId, item_name: item, qty, unit_price: price });
+    const res = await fetch(API_URL, { method: "POST", body: fd });
+    const r = await res.json();
+    if (!r.success) return toast(r.message, "error");
+    toast(`${item} updated`, "success");
+  } else {
+    // Add mode
+    const fd = new URLSearchParams({ action: "addPurchase", booking_id: purchaseBookingId, item_name: item, qty, unit_price: price });
+    const res = await fetch(API_URL, { method: "POST", body: fd });
+    const r = await res.json();
+    if (!r.success) return toast(r.message, "error");
+    toast(`${item} added`, "success");
+  }
+
+  editingPurchaseId = null;
+  $("pItem").value = ""; $("pQty").value = 1; $("pPrice").value = "";
+  $("pAddForm").classList.add("hidden");
+  $("pAddBtn").querySelector("button").textContent = "➕ Add Item";
+  $("pAddForm").querySelector("button[onclick='addPurchase()']").textContent = "➕ Add";
+  await loadPurchases();
+}
+
+async function deletePurchase(purchaseId) {
+  if (!confirm("Remove this item?")) return;
+  const fd = new URLSearchParams({ action: "deletePurchase", purchase_id: purchaseId });
+  await fetch(API_URL, { method: "POST", body: fd });
+  toast("Item removed", "info");
+  await loadPurchases();
+}
+
+/* ── CALENDAR ── */
+let calMonth = new Date().getMonth();
+let calYear = new Date().getFullYear();
+
+$("calendarBtn").onclick = () => {
+  $("calendarWrapper").classList.toggle("hidden");
+  if (!$("calendarWrapper").classList.contains("hidden")) renderCalendar();
+};
+
+function changeMonth(step) {
+  calMonth += step;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const cal = $("calendar");
+  cal.innerHTML = "";
+
+  $("monthLabel").textContent = new Date(calYear, calMonth)
+    .toLocaleString("default", { month: "long", year: "numeric" });
+
+  const today     = dOnly(new Date());
+  const firstDay  = new Date(calYear, calMonth, 1).getDay();
+  const totalDays = new Date(calYear, calMonth + 1, 0).getDate();
+
+  // Empty offset cells
+  for (let e = 0; e < firstDay; e++) {
+    cal.innerHTML += `<div class="calendar-day empty"></div>`;
+  }
+
+  for (let d = 1; d <= totalDays; d++) {
+    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const isToday = dateStr === today;
+
+    // Build per-room chips
+    let chips = "";
+    for (let r = 1; r <= TOTAL_ROOMS; r++) {
+      const b = allData.find(x =>
+        x.status === "Booked" && x.room_no == r &&
+        dateStr >= dOnly(x.check_in) && dateStr < dOnly(x.check_out)
+      );
+      if (b) {
+        const name = b.guest_name.split(" ")[0]; // first name only
+        chips += `<div class="room-chip chip-booked"
+                    title="Room ${r}: ${b.guest_name} · Click to view"
+                    onclick="viewBooking('${b.booking_id}')">
+                    🚪${r} ${name}
+                  </div>`;
+      } else {
+        chips += `<div class="room-chip chip-free">🚪${r} Free</div>`;
+      }
+    }
+
+    cal.innerHTML += `
+      <div class="calendar-day${isToday ? ' today' : ''}">
+        <div class="calendar-date">${d}</div>
+        ${chips}
+      </div>`;
+  }
+}
+
+/* ── START ── */
+document.addEventListener("DOMContentLoaded", () => {
+  initRooms();
+  loadToday();
+});
+</script>
+
+</body>
+</html>
