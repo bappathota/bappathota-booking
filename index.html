@@ -1172,6 +1172,7 @@ async function openInvoice(id) {
     $("iTotal").textContent = balance.toLocaleString("en-IN");
   };
   $("iRate").oninput = calc;
+  calc(); // run immediately so totals show on open
 }
 function closeInvoice() { $("invoiceModal").classList.remove("show"); }
 
