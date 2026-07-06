@@ -457,44 +457,70 @@
     .form-row { grid-template-columns: 1fr; }
     .topbar { flex-direction: column; align-items: stretch; }
 
-    /* Calendar mobile fixes */
-    .calendar-section { padding: 14px; }
-    .calendar-title { font-size: 15px; }
+    /* ── CALENDAR MOBILE ── */
+    #calendarWrapper {
+      overflow-x: hidden;
+      padding: 10px 8px;
+    }
 
-    .calendar-weekdays,
-    #calendar { gap: 3px; }
+    .calendar-nav {
+      margin-bottom: 12px;
+    }
+
+    .calendar-title { font-size: 13px; }
+
+    .calendar-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      margin-bottom: 2px;
+      width: 100%;
+    }
+
+    #calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      width: 100%;
+    }
 
     .calendar-weekday {
-      font-size: 9px;
-      padding: 4px 0;
+      font-size: 8px;
+      padding: 3px 0;
       letter-spacing: 0;
+      text-align: center;
     }
 
     .calendar-day {
-      padding: 5px 3px;
-      min-height: 60px;
-      border-radius: 7px;
+      padding: 3px 2px;
+      min-height: 52px;
+      border-radius: 5px;
+      overflow: hidden;
     }
 
     .calendar-date {
-      font-size: 11px;
-      margin-bottom: 3px;
+      font-size: 10px;
+      margin-bottom: 2px;
     }
 
     .calendar-day.today .calendar-date {
-      width: 18px;
-      height: 18px;
-      font-size: 9px;
+      width: 16px;
+      height: 16px;
+      font-size: 8px;
     }
 
-    /* On mobile hide "free" chips to save space, only show booked ones */
-    .room-chip.chip-free { display: block; font-size: 8px; padding: 1px 3px; opacity: .5; }
+    /* Hide free chips on mobile to save space */
+    .room-chip.chip-free { display: none; }
 
     .room-chip {
-      font-size: 9px;
-      padding: 2px 4px;
-      border-radius: 4px;
-      margin-top: 2px;
+      font-size: 8px;
+      padding: 1px 3px;
+      border-radius: 3px;
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
     }
   }
 </style>
@@ -518,7 +544,10 @@
       <button id="adminLoginBtn" class="btn-primary">🔐 Admin Login</button>
       <button id="addBookingBtn" class="btn-success hidden">➕ Add Booking</button>
     </div>
-    <button id="calendarBtn" class="btn-ghost">📅 Monthly Calendar</button>
+    <div style="display:flex;gap:10px;">
+      <button id="refreshBtn" class="btn-ghost" onclick="refreshData()">🔄 Refresh</button>
+      <button id="calendarBtn" class="btn-ghost">📅 Monthly Calendar</button>
+    </div>
   </div>
 
   <!-- ROOM CARDS -->
@@ -554,7 +583,6 @@
       <div class="calendar-weekday">Sat</div>
     </div>
     <div id="calendar"></div>
-
   </div>
 
 </div>
@@ -623,6 +651,10 @@
       <textarea id="desc" rows="2" placeholder="Purpose of visit, special requests…"
         style="width:100%;padding:10px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;resize:vertical;"></textarea>
     </div>
+    <div class="form-group">
+      <label>Advance Amount (₹)</label>
+      <input id="advance" type="number" min="0" value="0" placeholder="0">
+    </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeAdd()">Cancel</button>
       <button class="btn-success" onclick="addBooking()">Confirm Booking</button>
@@ -644,10 +676,12 @@
     <div class="detail-row"><span class="detail-label">Check-in</span><span class="detail-value" id="vIn"></span></div>
     <div class="detail-row"><span class="detail-label">Check-out</span><span class="detail-value" id="vOut"></span></div>
     <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value" id="vDesc" style="text-align:right;max-width:65%;word-break:break-word;"></span></div>
+    <div class="detail-row"><span class="detail-label">Advance Paid</span><span class="detail-value" style="color:#a78bfa;">₹ <span id="vAdvance">0</span></span></div>
     <div class="modal-actions">
       <button class="btn-primary" onclick="closeView()">Close</button>
       <button id="vEditBtn" class="btn-warning hidden" onclick="openEditFromView()">✏️ Edit Booking</button>
-      <button id="vPurchaseBtn" class="btn-success hidden" onclick="openPurchasesFromView()">🛒 Purchases</button>
+      <button id="vPurchaseBtn" class="btn-success hidden" onclick="openPurchasesFromView()">🍽️ Food Items</button>
+      <button id="vExtraBtn" class="btn-warning hidden" onclick="openExtraFromView()">💸 Extra Charges</button>
     </div>
   </div>
 </div>
@@ -690,6 +724,10 @@
       <textarea id="eDesc" rows="2"
         style="width:100%;padding:10px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;resize:vertical;"></textarea>
     </div>
+    <div class="form-group">
+      <label>Advance Amount (₹)</label>
+      <input id="eAdvance" type="number" min="0" value="0">
+    </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeEdit()">Cancel</button>
       <button class="btn-success" onclick="saveEdit()">Save Changes</button>
@@ -707,20 +745,20 @@
     <div class="detail-row"><span class="detail-label">Guest</span><span class="detail-value" id="iGuest"></span></div>
     <div class="detail-row"><span class="detail-label">Room</span><span class="detail-value" id="iRoom"></span></div>
     <div class="detail-row"><span class="detail-label">Nights</span><span class="detail-value" id="iNights"></span></div>
-    <div class="detail-row"><span class="detail-label">Purchases Total</span><span class="detail-value" style="color:#6ee7b7;">₹ <span id="iPurchaseTotal">0</span></span></div>
-    <div class="form-row" style="margin-top:14px;">
-      <div class="form-group">
-        <label>Cost per night (₹)</label>
-        <input id="iRate" type="number" placeholder="0">
-      </div>
-      <div class="form-group">
-        <label>Extra charges (₹)</label>
-        <input id="iExtra" type="number" value="0">
-      </div>
+    <div class="detail-row"><span class="detail-label">Food Items Total</span><span class="detail-value" style="color:#6ee7b7;">₹ <span id="iPurchaseTotal">0</span></span></div>
+    <div class="detail-row"><span class="detail-label">Extra Charges Total</span><span class="detail-value" style="color:#fbbf24;">₹ <span id="iExtraChargesTotal">0</span></span></div>
+    <div class="detail-row"><span class="detail-label">Advance Paid</span><span class="detail-value" style="color:#a78bfa;">₹ <span id="iAdvance">0</span></span></div>
+    <div class="form-group" style="margin-top:14px;">
+      <label>Cost per night (₹)</label>
+      <input id="iRate" type="number" placeholder="0">
     </div>
-    <div class="invoice-total">
-      <div class="label">Total Amount</div>
-      <div class="amount">₹ <span id="iTotal">0</span></div>
+    <div class="invoice-total" style="margin-top:10px;">
+      <div class="label">Gross Total</div>
+      <div style="font-size:14px;color:var(--text-muted);margin-top:4px;">₹ <span id="iGross">0</span></div>
+    </div>
+    <div class="invoice-total" style="background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);margin-top:10px;">
+      <div class="label">Balance Due</div>
+      <div class="amount" style="color:#a78bfa;">₹ <span id="iTotal">0</span></div>
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeInvoice()">Close</button>
@@ -729,20 +767,18 @@
   </div>
 </div>
 
-<!-- PURCHASES MODAL -->
+<!-- FOOD ITEMS MODAL -->
 <div id="purchaseModal" class="modal-overlay">
   <div class="modal" style="max-width:500px;">
     <div class="modal-header">
-      <div class="modal-icon green">🛒</div>
-      <div><h3>Purchases</h3><p style="color:var(--text-muted);font-size:12px;margin-top:2px" id="pGuestLabel"></p></div>
+      <div class="modal-icon green">🍽️</div>
+      <div><h3>Food Items</h3><p style="color:var(--text-muted);font-size:12px;margin-top:2px" id="pGuestLabel"></p></div>
     </div>
 
-    <!-- Add item button (admin only) -->
     <div id="pAddBtn" class="hidden" style="margin-bottom:10px;">
       <button class="btn-success" style="width:100%;padding:10px;" onclick="toggleAddItem()">➕ Add Item</button>
     </div>
 
-    <!-- Add item form (admin only, toggled) -->
     <div id="pAddForm" class="hidden">
       <div class="form-row">
         <div class="form-group">
@@ -765,17 +801,56 @@
       </div>
     </div>
 
-    <!-- Items list -->
     <div id="pList" style="margin-top:12px;max-height:220px;overflow-y:auto;"></div>
 
-    <!-- Total -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);">
-      <span style="font-size:13px;color:var(--text-muted);font-weight:600;">PURCHASES TOTAL</span>
+      <span style="font-size:13px;color:var(--text-muted);font-weight:600;">FOOD ITEMS TOTAL</span>
       <span style="font-size:20px;font-weight:800;color:#6ee7b7;">₹ <span id="pTotal">0</span></span>
     </div>
 
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closePurchases()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXTRA CHARGES MODAL -->
+<div id="extraModal" class="modal-overlay">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <div class="modal-icon orange">💸</div>
+      <div><h3>Extra Charges</h3><p style="color:var(--text-muted);font-size:12px;margin-top:2px" id="ecGuestLabel"></p></div>
+    </div>
+
+    <div id="ecAddBtn" class="hidden" style="margin-bottom:10px;">
+      <button class="btn-warning" style="width:100%;padding:10px;" onclick="toggleAddExtraItem()">➕ Add Charge</button>
+    </div>
+
+    <div id="ecAddForm" class="hidden">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Charge Name</label>
+          <input id="ecChargeName" placeholder="e.g. Laundry, Transport">
+        </div>
+        <div class="form-group">
+          <label>Amount (₹)</label>
+          <input id="ecChargeAmount" type="number" min="0" placeholder="0">
+        </div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <button class="btn-warning" style="width:100%;padding:10px;" onclick="addExtraCharge()">➕ Add</button>
+      </div>
+    </div>
+
+    <div id="ecList" style="margin-top:12px;max-height:220px;overflow-y:auto;"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);">
+      <span style="font-size:13px;color:var(--text-muted);font-weight:600;">EXTRA CHARGES TOTAL</span>
+      <span style="font-size:20px;font-weight:800;color:#fbbf24;">₹ <span id="ecTotal">0</span></span>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeExtraCharges()">Close</button>
     </div>
   </div>
 </div>
@@ -845,7 +920,7 @@ async function addBooking() {
   if (allData.some(b =>
     b.status === "Booked" &&
     b.room_no == rm &&
-    ci <= dOnly(b.check_out) &&
+    ci < dOnly(b.check_out) &&
     co > dOnly(b.check_in)
   )) return toast("Room already booked for those dates", "error");
 
@@ -857,7 +932,8 @@ async function addBooking() {
     room_no: rm,
     check_in: ci,
     check_out: co,
-    description: $("desc").value
+    description: $("desc").value,
+    advance_amount: $("advance").value || 0
   });
 
   const res = await fetch(API_URL, { method: "POST", body: fd });
@@ -875,6 +951,23 @@ async function loadAvailability(date, forceRefresh = false) {
     allData = await fetch(API_URL).then(r => r.json());
   }
   renderAvailability(date);
+}
+
+async function refreshData() {
+  const btn = $("refreshBtn");
+  btn.textContent = "⏳ Refreshing...";
+  btn.disabled = true;
+  try {
+    allData = await fetch(API_URL).then(r => r.json());
+    renderAvailability($("availDate").value);
+    if (!$("calendarWrapper").classList.contains("hidden")) renderCalendar();
+    toast("Data refreshed", "success");
+  } catch(e) {
+    toast("Refresh failed. Check connection.", "error");
+  } finally {
+    btn.textContent = "🔄 Refresh";
+    btn.disabled = false;
+  }
 }
 
 function renderAvailability(date) {
@@ -915,10 +1008,11 @@ function renderAvailability(date) {
       </div>`;
   }
 }
+
 function loadToday() {
   const today = dOnly(new Date());
   $("availDate").value = today;
-  loadAvailability(today, true); // force refresh on initial load
+  loadAvailability(today, true);
 }
 
 function changeDay(step) {
@@ -926,13 +1020,13 @@ function changeDay(step) {
   d.setDate(d.getDate() + step);
   const ds = dOnly(d);
   $("availDate").value = ds;
-  renderAvailability(ds); // use cached data — instant!
+  renderAvailability(ds);
 }
 
 function goToday() {
   const today = dOnly(new Date());
   $("availDate").value = today;
-  renderAvailability(today); // use cached data — instant!
+  renderAvailability(today);
 }
 
 $("availDate").onchange = () => renderAvailability($("availDate").value);
@@ -948,8 +1042,8 @@ function viewBooking(id) {
   $("vIn").textContent = dOnly(viewData.check_in);
   $("vOut").textContent = dOnly(viewData.check_out);
   $("vDesc").textContent = viewData.description || "—";
+  $("vAdvance").textContent = (Number(viewData.advance_amount) || 0).toLocaleString("en-IN");
 
-  // Show inline description editor for admin if booking is today or future
   const today = dOnly(new Date());
   const isFutureOrCurrent = dOnly(viewData.check_out) >= today;
   if (admin && isFutureOrCurrent) {
@@ -959,8 +1053,10 @@ function viewBooking(id) {
   }
   if (admin) {
     $("vPurchaseBtn").classList.remove("hidden");
+    $("vExtraBtn").classList.remove("hidden");
   } else {
     $("vPurchaseBtn").classList.add("hidden");
+    $("vExtraBtn").classList.add("hidden");
   }
 
   $("viewModal").classList.add("show");
@@ -982,7 +1078,6 @@ async function saveDescription() {
   const r = await res.json();
   if (!r.success) return toast(r.message || "Failed to save", "error");
   $("vDesc").textContent = $("vDescInput").value || "—";
-  // Update local cache too
   viewData.description = $("vDescInput").value;
   const cached = allData.find(x => x.booking_id === viewData.booking_id);
   if (cached) cached.description = viewData.description;
@@ -998,10 +1093,11 @@ function editBooking(id) {
   $("eIn").value = dOnly(editData.check_in);
   $("eOut").value = dOnly(editData.check_out);
   $("eDesc").value = editData.description || "";
+  $("eAdvance").value = Number(editData.advance_amount) || 0;
   $("editModal").classList.add("show");
 }
 function closeEdit() { $("editModal").classList.remove("show"); }
-function saveEdit() {
+async function saveEdit() {
   const fd = new URLSearchParams({
     action: "update",
     booking_id: editData.booking_id,
@@ -1011,13 +1107,15 @@ function saveEdit() {
     room_no: editData.room_no,
     check_in: $("eIn").value,
     check_out: $("eOut").value,
-    description: $("eDesc").value
+    description: $("eDesc").value,
+    advance_amount: $("eAdvance").value || 0
   });
-  fetch(API_URL, { method: "POST", body: fd }).then(() => {
-    closeEdit();
-    toast("Booking updated", "success");
-    loadToday();
-  });
+  const res = await fetch(API_URL, { method: "POST", body: fd });
+  const r = await res.json();
+  if (!r.success) return toast(r.message || "Update failed", "error");
+  closeEdit();
+  toast("Booking updated", "success");
+  loadToday();
 }
 
 /* ── CANCEL ── */
@@ -1028,6 +1126,9 @@ function cancelBooking(id) {
 }
 
 /* ── INVOICE ── */
+let invoiceFoodItems = [];
+let invoiceExtraCharges = [];
+
 async function openInvoice(id) {
   invoiceData = allData.find(x => x.booking_id === id);
   const nights = Math.max(1, (new Date(invoiceData.check_out) - new Date(invoiceData.check_in)) / 86400000);
@@ -1035,27 +1136,42 @@ async function openInvoice(id) {
   $("iRoom").textContent = "Room " + invoiceData.room_no;
   $("iNights").textContent = nights + " night(s)";
   $("iRate").value = "";
-  $("iExtra").value = 0;
   $("iTotal").textContent = 0;
+  $("iGross").textContent = 0;
 
-  // Fetch purchases total
+  const advancePaid = Number(invoiceData.advance_amount) || 0;
+  $("iAdvance").textContent = advancePaid.toLocaleString("en-IN");
+
+  // Fetch food items (store for PDF)
+  invoiceFoodItems = [];
   let purchasesTotal = 0;
   try {
     const res = await fetch(`${API_URL}?action=getPurchases&booking_id=${id}`);
-    const items = await res.json();
-    purchasesTotal = items.reduce((s, it) => s + Number(it.qty) * Number(it.unit_price), 0);
+    invoiceFoodItems = await res.json();
+    purchasesTotal = invoiceFoodItems.reduce((s, it) => s + Number(it.qty) * Number(it.unit_price), 0);
   } catch(e) {}
   $("iPurchaseTotal").textContent = purchasesTotal.toLocaleString("en-IN");
+
+  // Fetch extra charges (store for PDF)
+  invoiceExtraCharges = [];
+  let extraChargesTotal = 0;
+  try {
+    const res2 = await fetch(`${API_URL}?action=getExtraCharges&booking_id=${id}`);
+    invoiceExtraCharges = await res2.json();
+    extraChargesTotal = invoiceExtraCharges.reduce((s, c) => s + Number(c.amount), 0);
+  } catch(e) {}
+  $("iExtraChargesTotal").textContent = extraChargesTotal.toLocaleString("en-IN");
 
   $("invoiceModal").classList.add("show");
 
   const calc = () => {
     const roomTotal = Number($("iRate").value || 0) * nights;
-    const extra = Number($("iExtra").value || 0);
-    $("iTotal").textContent = (roomTotal + extra + purchasesTotal).toLocaleString("en-IN");
+    const gross = roomTotal + purchasesTotal + extraChargesTotal;
+    const balance = Math.max(0, gross - advancePaid);
+    $("iGross").textContent = gross.toLocaleString("en-IN");
+    $("iTotal").textContent = balance.toLocaleString("en-IN");
   };
   $("iRate").oninput = calc;
-  $("iExtra").oninput = calc;
 }
 function closeInvoice() { $("invoiceModal").classList.remove("show"); }
 
@@ -1063,58 +1179,175 @@ async function downloadInvoicePDF() {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF();
   const b = invoiceData;
-  const nights = Math.max(1, (new Date(b.check_out) - new Date(b.check_in)) / 86400000);
-  const rate   = Number($("iRate").value || 0);
-  const extra  = Number($("iExtra").value || 0);
-  const purTotal = Number($("iPurchaseTotal").textContent.replace(/,/g,"")) || 0;
-  const total  = (rate * nights) + extra + purTotal;
+  const nights  = Math.max(1, (new Date(b.check_out) - new Date(b.check_in)) / 86400000);
+  const rate    = Number($("iRate").value || 0);
+  const advance = Number($("iAdvance").textContent.replace(/,/g,"")) || 0;
 
-  const fmt = d => new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" });
+  const foodTotal  = invoiceFoodItems.reduce((s, it) => s + Number(it.qty) * Number(it.unit_price), 0);
+  const extraTotal = invoiceExtraCharges.reduce((s, c) => s + Number(c.amount), 0);
+  const gross   = (rate * nights) + foodTotal + extraTotal;
+  const balance = Math.max(0, gross - advance);
 
-  // Header
-  pdf.setFontSize(20); pdf.setFont("helvetica","bold");
-  pdf.text("BappaThota Homestay", 20, 22);
-  pdf.setFontSize(11); pdf.setFont("helvetica","normal");
-  pdf.setTextColor(100);
-  pdf.text("Booking Invoice", 20, 30);
-  pdf.setTextColor(0);
-  pdf.setLineWidth(0.5); pdf.line(20, 34, 190, 34);
+  const fmtDate = d => new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" });
+  const fmtAmt  = n => `Rs. ${Number(n).toLocaleString("en-IN")}`;
 
-  // Guest details
-  let y = 46;
-  const row = (label, val) => {
-    pdf.setFont("helvetica","bold"); pdf.text(label, 20, y);
-    pdf.setFont("helvetica","normal"); pdf.text(String(val), 90, y);
-    y += 9;
+  const pageW = 210;
+  let y = 0;
+
+  const checkPage = (needed = 12) => {
+    if (y + needed > 275) { pdf.addPage(); y = 20; }
   };
-  row("Guest Name :", b.guest_name);
-  row("Phone :", b.phone || "-");
-  row("Room No :", "Room " + b.room_no);
-  row("No. of Guests :", b.no_of_guests);
-  row("Check-in :", fmt(b.check_in));
-  row("Check-out :", fmt(b.check_out));
 
-  y += 4; pdf.line(20, y, 190, y); y += 10;
+  // ── HEADER ──
+  pdf.setFillColor(15, 23, 42);
+  pdf.rect(0, 0, pageW, 38, "F");
+  pdf.setFontSize(18); pdf.setFont("helvetica","bold"); pdf.setTextColor(255,255,255);
+  pdf.text("BappaThota Homestay", 20, 16);
+  pdf.setFontSize(10); pdf.setFont("helvetica","normal"); pdf.setTextColor(148,163,184);
+  pdf.text("Booking Invoice", 20, 25);
+  pdf.setTextColor(148,163,184);
+  pdf.text(`Date: ${new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}`, 20, 33);
+  y = 48;
 
-  // Charges
-  pdf.setFont("helvetica","bold"); pdf.text("Charges", 20, y); y += 9;
-  pdf.setFont("helvetica","normal");
-  if (rate) { pdf.text(`Room (${nights} night(s) × ₹${rate})`, 25, y); pdf.text(`₹ ${(rate*nights).toLocaleString("en-IN")}`, 160, y); y += 8; }
-  if (purTotal) { pdf.text("Purchases", 25, y); pdf.text(`₹ ${purTotal.toLocaleString("en-IN")}`, 160, y); y += 8; }
-  if (extra) { pdf.text("Extra charges", 25, y); pdf.text(`₹ ${extra.toLocaleString("en-IN")}`, 160, y); y += 8; }
+  // ── GUEST INFO BOX ──
+  pdf.setFillColor(241,245,249);
+  pdf.roundedRect(15, y - 4, pageW - 30, 58, 3, 3, "F");
+  pdf.setFontSize(9); pdf.setFont("helvetica","bold"); pdf.setTextColor(100,116,139);
+  pdf.text("GUEST DETAILS", 20, y + 2);
+  y += 10;
 
-  y += 4; pdf.setLineWidth(0.3); pdf.line(20, y, 190, y); y += 10;
-  pdf.setFontSize(14); pdf.setFont("helvetica","bold");
-  pdf.text("Total", 20, y); pdf.text(`₹ ${total.toLocaleString("en-IN")}`, 160, y);
+  const col = (label, val, x, col2) => {
+    pdf.setFont("helvetica","bold"); pdf.setTextColor(100,116,139); pdf.setFontSize(8);
+    pdf.text(label, x, y);
+    pdf.setFont("helvetica","normal"); pdf.setTextColor(15,23,42); pdf.setFontSize(10);
+    pdf.text(String(val), col2, y + 5);
+  };
+  col("GUEST NAME", b.guest_name, 20, 20);         col("PHONE", b.phone || "-", 115, 115);
+  y += 14;
+  col("ROOM NO", "Room " + b.room_no, 20, 20);     col("NO. OF GUESTS", b.no_of_guests, 115, 115);
+  y += 14;
+  col("CHECK-IN", fmtDate(b.check_in), 20, 20);    col("CHECK-OUT", fmtDate(b.check_out), 115, 115);
+  y += 18;
 
-  // Footer
-  y += 20; pdf.setFontSize(10); pdf.setFont("helvetica","normal"); pdf.setTextColor(120);
-  pdf.text("Thank you for choosing BappaThota Homestay!", 20, y);
+  // ── ROOM CHARGES (always shown) ──
+  checkPage(28);
+  pdf.setFillColor(59,130,246);
+  pdf.rect(15, y, pageW - 30, 8, "F");
+  pdf.setFontSize(9); pdf.setFont("helvetica","bold"); pdf.setTextColor(255,255,255);
+  pdf.text("ROOM CHARGES", 20, y + 5.5);
+  y += 12;
 
-  pdf.save(`Invoice_${b.guest_name.replace(/ /g,"_")}_${b.booking_id.slice(0,6)}.pdf`);
+  pdf.setDrawColor(226,232,240); pdf.setLineWidth(0.3);
+  pdf.setFontSize(9); pdf.setFont("helvetica","bold"); pdf.setTextColor(100,116,139);
+  pdf.text("Description", 20, y); pdf.text("Amount", 175, y, { align:"right" });
+  pdf.line(15, y + 2, pageW - 15, y + 2); y += 8;
+
+  pdf.setFillColor(248,250,252); pdf.rect(15, y - 5, pageW - 30, 9, "F");
+  pdf.setFont("helvetica","normal"); pdf.setTextColor(15,23,42); pdf.setFontSize(10);
+  const rateLabel = rate ? `Room ${b.room_no}  ×  ${nights} night(s)  @  Rs.${rate}/night` : `Room ${b.room_no}  ×  ${nights} night(s)`;
+  pdf.text(rateLabel, 20, y);
+  pdf.text(fmtAmt(rate * nights), 175, y, { align:"right" });
+  y += 6;
+  pdf.setDrawColor(59,130,246); pdf.setLineWidth(0.5); pdf.line(15, y, pageW - 15, y); y += 6;
+  pdf.setFont("helvetica","bold"); pdf.setTextColor(59,130,246); pdf.setFontSize(10);
+  pdf.text("Room Charges Total", 20, y); pdf.text(fmtAmt(rate * nights), 175, y, { align:"right" });
+  y += 12;
+
+  // ── FOOD BILL ──
+  if (invoiceFoodItems.length) {
+    checkPage(28);
+    pdf.setFillColor(16,185,129);
+    pdf.rect(15, y, pageW - 30, 8, "F");
+    pdf.setFontSize(9); pdf.setFont("helvetica","bold"); pdf.setTextColor(255,255,255);
+    pdf.text("FOOD BILL", 20, y + 5.5);
+    y += 12;
+
+    pdf.setFontSize(9); pdf.setFont("helvetica","bold"); pdf.setTextColor(100,116,139);
+    pdf.text("Item", 20, y); pdf.text("Qty", 105, y); pdf.text("Rate", 130, y); pdf.text("Amount", 175, y, { align:"right" });
+    pdf.setDrawColor(226,232,240); pdf.line(15, y + 2, pageW - 15, y + 2); y += 8;
+
+    let foodRunning = 0;
+    invoiceFoodItems.forEach((it, idx) => {
+      checkPage(10);
+      const lineAmt = Number(it.qty) * Number(it.unit_price);
+      foodRunning += lineAmt;
+      pdf.setFontSize(10); pdf.setFont("helvetica","normal"); pdf.setTextColor(15,23,42);
+      if (idx % 2 === 0) { pdf.setFillColor(248,250,252); pdf.rect(15, y - 5, pageW - 30, 9, "F"); }
+      pdf.text(String(it.item_name), 20, y);
+      pdf.text(String(it.qty), 105, y);
+      pdf.text(`Rs.${Number(it.unit_price).toLocaleString("en-IN")}`, 130, y);
+      pdf.text(fmtAmt(lineAmt), 175, y, { align:"right" });
+      y += 9;
+    });
+    pdf.setDrawColor(16,185,129); pdf.setLineWidth(0.5); pdf.line(15, y, pageW - 15, y); y += 6;
+    pdf.setFont("helvetica","bold"); pdf.setTextColor(16,185,129); pdf.setFontSize(10);
+    pdf.text("Food Bill Total", 20, y); pdf.text(fmtAmt(foodRunning), 175, y, { align:"right" });
+    y += 12;
+  }
+
+  // ── EXTRA CHARGES ──
+  if (invoiceExtraCharges.length) {
+    checkPage(28);
+    pdf.setFillColor(245,158,11);
+    pdf.rect(15, y, pageW - 30, 8, "F");
+    pdf.setFontSize(9); pdf.setFont("helvetica","bold"); pdf.setTextColor(255,255,255);
+    pdf.text("EXTRA CHARGES", 20, y + 5.5);
+    y += 12;
+
+    pdf.setFontSize(9); pdf.setFont("helvetica","bold"); pdf.setTextColor(100,116,139);
+    pdf.text("Description", 20, y); pdf.text("Amount", 175, y, { align:"right" });
+    pdf.setDrawColor(226,232,240); pdf.line(15, y + 2, pageW - 15, y + 2); y += 8;
+
+    let extraRunning = 0;
+    invoiceExtraCharges.forEach((c, idx) => {
+      checkPage(10);
+      extraRunning += Number(c.amount);
+      pdf.setFontSize(10); pdf.setFont("helvetica","normal"); pdf.setTextColor(15,23,42);
+      if (idx % 2 === 0) { pdf.setFillColor(248,250,252); pdf.rect(15, y - 5, pageW - 30, 9, "F"); }
+      pdf.text(String(c.charge_name), 20, y);
+      pdf.text(fmtAmt(c.amount), 175, y, { align:"right" });
+      y += 9;
+    });
+    pdf.setDrawColor(245,158,11); pdf.setLineWidth(0.5); pdf.line(15, y, pageW - 15, y); y += 6;
+    pdf.setFont("helvetica","bold"); pdf.setTextColor(245,158,11); pdf.setFontSize(10);
+    pdf.text("Extra Charges Total", 20, y); pdf.text(fmtAmt(extraRunning), 175, y, { align:"right" });
+    y += 12;
+  }
+
+  // ── GRAND TOTAL ──
+  checkPage(50);
+  pdf.setDrawColor(226,232,240); pdf.setLineWidth(0.5); pdf.line(15, y, pageW - 15, y); y += 8;
+  pdf.setFontSize(11); pdf.setFont("helvetica","bold"); pdf.setTextColor(15,23,42);
+  pdf.text("Grand Total", 20, y); pdf.text(fmtAmt(gross), 175, y, { align:"right" }); y += 10;
+
+  if (advance) {
+    pdf.setFontSize(10); pdf.setFont("helvetica","normal"); pdf.setTextColor(100,116,139);
+    pdf.text("Advance Paid", 20, y); pdf.text(`- ${fmtAmt(advance)}`, 175, y, { align:"right" }); y += 8;
+    pdf.setDrawColor(167,139,250); pdf.setLineWidth(0.5); pdf.line(15, y, pageW - 15, y); y += 8;
+    pdf.setFillColor(167,139,250,0.1);
+    pdf.setFillColor(237,233,254);
+    pdf.roundedRect(15, y - 3, pageW - 30, 14, 2, 2, "F");
+    pdf.setFontSize(13); pdf.setFont("helvetica","bold"); pdf.setTextColor(109,40,217);
+    pdf.text("Balance Due", 20, y + 7); pdf.text(fmtAmt(balance), 175, y + 7, { align:"right" });
+    y += 20;
+  } else {
+    pdf.setFillColor(220,252,231);
+    pdf.roundedRect(15, y - 3, pageW - 30, 14, 2, 2, "F");
+    pdf.setFontSize(13); pdf.setFont("helvetica","bold"); pdf.setTextColor(21,128,61);
+    pdf.text("Total Amount", 20, y + 7); pdf.text(fmtAmt(gross), 175, y + 7, { align:"right" });
+    y += 20;
+  }
+
+  // ── FOOTER ──
+  checkPage(16);
+  y += 4;
+  pdf.setFontSize(9); pdf.setFont("helvetica","normal"); pdf.setTextColor(148,163,184);
+  pdf.text("Thank you for choosing BappaThota Homestay!", pageW / 2, y, { align:"center" });
+
+  pdf.save(`Invoice_${b.guest_name.replace(/ /g,"_")}_Room${b.room_no}_${b.booking_id.slice(0,6)}.pdf`);
 }
 
-/* ── PURCHASES ── */
+/* ── FOOD ITEMS (Purchases) ── */
 let purchaseBookingId = null;
 
 function openPurchasesFromView() {
@@ -1128,7 +1361,6 @@ function toggleAddItem() {
   const open = !form.classList.contains("hidden");
   $("pAddBtn").querySelector("button").textContent = open ? "✖ Cancel" : "➕ Add Item";
   if (!open) {
-    // reset to add mode
     editingPurchaseId = null;
     $("pItem").value = ""; $("pQty").value = 1; $("pPrice").value = "";
     $("pAddForm").querySelector("button[onclick='addPurchase()']").textContent = "➕ Add";
@@ -1141,7 +1373,7 @@ async function openPurchases(bookingId) {
   $("pGuestLabel").textContent = b.guest_name + " · Room " + b.room_no;
   if (admin) $("pAddBtn").classList.remove("hidden");
   else $("pAddBtn").classList.add("hidden");
-  $("pAddForm").classList.add("hidden"); // always start collapsed
+  $("pAddForm").classList.add("hidden");
   $("pItem").value = ""; $("pQty").value = 1; $("pPrice").value = "";
   $("purchaseModal").classList.add("show");
   await loadPurchases();
@@ -1157,7 +1389,7 @@ async function loadPurchases() {
 function renderPurchases(items) {
   const list = $("pList");
   if (!items.length) {
-    list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px 0;">No purchases yet</p>`;
+    list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px 0;">No food items yet</p>`;
     $("pTotal").textContent = "0";
     return;
   }
@@ -1187,13 +1419,11 @@ let editingPurchaseId = null;
 
 function startEditPurchase(id, name, qty, price) {
   editingPurchaseId = id;
-  // Show the add form with existing values
   $("pAddForm").classList.remove("hidden");
   $("pAddBtn").querySelector("button").textContent = "✖ Cancel";
   $("pItem").value = name;
   $("pQty").value = qty;
   $("pPrice").value = price;
-  // Change Add button label to Update
   $("pAddForm").querySelector("button[onclick='addPurchase()']").textContent = "💾 Update";
 }
 
@@ -1204,14 +1434,12 @@ async function addPurchase() {
   const price = Number($("pPrice").value) || 0;
 
   if (editingPurchaseId) {
-    // Edit mode
     const fd = new URLSearchParams({ action: "editPurchase", purchase_id: editingPurchaseId, item_name: item, qty, unit_price: price });
     const res = await fetch(API_URL, { method: "POST", body: fd });
     const r = await res.json();
     if (!r.success) return toast(r.message, "error");
     toast(`${item} updated`, "success");
   } else {
-    // Add mode
     const fd = new URLSearchParams({ action: "addPurchase", booking_id: purchaseBookingId, item_name: item, qty, unit_price: price });
     const res = await fetch(API_URL, { method: "POST", body: fd });
     const r = await res.json();
@@ -1233,6 +1461,110 @@ async function deletePurchase(purchaseId) {
   await fetch(API_URL, { method: "POST", body: fd });
   toast("Item removed", "info");
   await loadPurchases();
+}
+
+/* ── EXTRA CHARGES ── */
+let extraBookingId = null;
+let editingExtraId = null;
+
+function openExtraFromView() {
+  closeView();
+  openExtraCharges(viewData.booking_id);
+}
+
+function toggleAddExtraItem() {
+  const form = $("ecAddForm");
+  form.classList.toggle("hidden");
+  const open = !form.classList.contains("hidden");
+  $("ecAddBtn").querySelector("button").textContent = open ? "✖ Cancel" : "➕ Add Charge";
+  if (!open) {
+    editingExtraId = null;
+    $("ecChargeName").value = ""; $("ecChargeAmount").value = "";
+  }
+}
+
+async function openExtraCharges(bookingId) {
+  extraBookingId = bookingId;
+  const b = allData.find(x => x.booking_id === bookingId);
+  $("ecGuestLabel").textContent = b.guest_name + " · Room " + b.room_no;
+  if (admin) $("ecAddBtn").classList.remove("hidden");
+  else $("ecAddBtn").classList.add("hidden");
+  $("ecAddForm").classList.add("hidden");
+  $("ecChargeName").value = ""; $("ecChargeAmount").value = "";
+  $("extraModal").classList.add("show");
+  await loadExtraCharges();
+}
+function closeExtraCharges() { $("extraModal").classList.remove("show"); }
+
+async function loadExtraCharges() {
+  const res = await fetch(`${API_URL}?action=getExtraCharges&booking_id=${extraBookingId}`);
+  const items = await res.json();
+  renderExtraCharges(items);
+}
+
+function renderExtraCharges(items) {
+  const list = $("ecList");
+  if (!items.length) {
+    list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px 0;">No extra charges yet</p>`;
+    $("ecTotal").textContent = "0";
+    return;
+  }
+  let total = 0;
+  list.innerHTML = items.map(it => {
+    total += Number(it.amount);
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;">
+        <span style="font-weight:600;">${it.charge_name}</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-weight:700;color:#fbbf24;">₹${Number(it.amount).toLocaleString("en-IN")}</span>
+          ${admin ? `
+            <button class="btn-ghost btn-sm" onclick="startEditExtra('${it.charge_id}','${it.charge_name.replace(/'/g,"\\'")}',${it.amount})">✏️</button>
+            <button class="btn-danger btn-sm" onclick="deleteExtraCharge('${it.charge_id}')">✕</button>
+          ` : ""}
+        </div>
+      </div>`;
+  }).join("");
+  $("ecTotal").textContent = total.toLocaleString("en-IN");
+}
+
+function startEditExtra(id, name, amount) {
+  editingExtraId = id;
+  $("ecAddForm").classList.remove("hidden");
+  $("ecAddBtn").querySelector("button").textContent = "✖ Cancel";
+  $("ecChargeName").value = name;
+  $("ecChargeAmount").value = amount;
+}
+
+async function addExtraCharge() {
+  const name = $("ecChargeName").value.trim();
+  if (!name) return toast("Enter charge name", "error");
+  const amount = Number($("ecChargeAmount").value) || 0;
+
+  if (editingExtraId) {
+    const fd = new URLSearchParams({ action: "editExtraCharge", charge_id: editingExtraId, charge_name: name, amount });
+    const r = await (await fetch(API_URL, { method: "POST", body: fd })).json();
+    if (!r.success) return toast(r.message, "error");
+    toast(`${name} updated`, "success");
+  } else {
+    const fd = new URLSearchParams({ action: "addExtraCharge", booking_id: extraBookingId, charge_name: name, amount });
+    const r = await (await fetch(API_URL, { method: "POST", body: fd })).json();
+    if (!r.success) return toast(r.message, "error");
+    toast(`${name} added`, "success");
+  }
+
+  editingExtraId = null;
+  $("ecChargeName").value = ""; $("ecChargeAmount").value = "";
+  $("ecAddForm").classList.add("hidden");
+  $("ecAddBtn").querySelector("button").textContent = "➕ Add Charge";
+  await loadExtraCharges();
+}
+
+async function deleteExtraCharge(chargeId) {
+  if (!confirm("Remove this charge?")) return;
+  const fd = new URLSearchParams({ action: "deleteExtraCharge", charge_id: chargeId });
+  await fetch(API_URL, { method: "POST", body: fd });
+  toast("Charge removed", "info");
+  await loadExtraCharges();
 }
 
 /* ── CALENDAR ── */
@@ -1262,7 +1594,6 @@ function renderCalendar() {
   const firstDay  = new Date(calYear, calMonth, 1).getDay();
   const totalDays = new Date(calYear, calMonth + 1, 0).getDate();
 
-  // Empty offset cells
   for (let e = 0; e < firstDay; e++) {
     cal.innerHTML += `<div class="calendar-day empty"></div>`;
   }
@@ -1271,7 +1602,6 @@ function renderCalendar() {
     const dateStr = `${calYear}-${String(calMonth + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
     const isToday = dateStr === today;
 
-    // Build per-room chips
     let chips = "";
     for (let r = 1; r <= TOTAL_ROOMS; r++) {
       const b = allData.find(x =>
@@ -1279,7 +1609,7 @@ function renderCalendar() {
         dateStr >= dOnly(x.check_in) && dateStr < dOnly(x.check_out)
       );
       if (b) {
-        const name = b.guest_name.split(" ")[0]; // first name only
+        const name = b.guest_name.split(" ")[0];
         chips += `<div class="room-chip chip-booked"
                     title="Room ${r}: ${b.guest_name} · Click to view"
                     onclick="viewBooking('${b.booking_id}')">
