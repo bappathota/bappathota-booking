@@ -630,7 +630,7 @@
         <input id="guest" placeholder="Full name">
       </div>
       <div class="form-group">
-        <label>Phone (10 digits)</label>
+        <label>Phone (min 10 digits)</label>
         <input id="phone" placeholder="9876543210">
       </div>
     </div>
@@ -934,12 +934,49 @@ function initRooms() {
     $("room").innerHTML += `<option value="${i}">Room ${i}</option>`;
 }
 
+/* Auto-populate room dropdown with only rooms available for chosen dates */
+function refreshRoomOptions() {
+  const ci = $("checkin").value;
+  const co = $("checkout").value;
+  const roomSel = $("room");
+  const prevValue = roomSel.value;
+
+  roomSel.innerHTML = "";
+  for (let i = 1; i <= TOTAL_ROOMS; i++) {
+    let isBooked = false;
+    if (ci && co && ci < co) {
+      isBooked = allData.some(b =>
+        b.status === "Booked" &&
+        b.room_no == i &&
+        ci < dOnly(b.check_out) &&
+        co > dOnly(b.check_in)
+      );
+    }
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = isBooked ? `Room ${i} (Booked)` : `Room ${i} (Available)`;
+    opt.disabled = isBooked;
+    roomSel.appendChild(opt);
+  }
+  // keep previous selection if still available, else pick first available room
+  const stillAvailable = [...roomSel.options].find(o => o.value === prevValue && !o.disabled);
+  if (stillAvailable) {
+    roomSel.value = prevValue;
+  } else {
+    const firstAvailable = [...roomSel.options].find(o => !o.disabled);
+    if (firstAvailable) roomSel.value = firstAvailable.value;
+  }
+}
+
+$("checkin").addEventListener("change", refreshRoomOptions);
+$("checkout").addEventListener("change", refreshRoomOptions);
+
 /* ── ADD ── */
-$("addBookingBtn").onclick = () => { $("addModal").classList.add("show"); };
+$("addBookingBtn").onclick = () => { $("addModal").classList.add("show"); refreshRoomOptions(); };
 function closeAdd() { $("addModal").classList.remove("show"); }
 
 async function addBooking() {
-  if (!/^\d{10}$/.test($("phone").value)) return toast("Invalid phone number (10 digits required)", "error");
+  if (!/^\d{10,}$/.test($("phone").value)) return toast("Invalid phone number (minimum 10 digits required)", "error");
   if ($("guests").value > 4) return toast("Maximum 4 guests allowed", "error");
 
   const ci = $("checkin").value;
@@ -1128,6 +1165,7 @@ function editBooking(id) {
 }
 function closeEdit() { $("editModal").classList.remove("show"); }
 async function saveEdit() {
+  if (!/^\d{10,}$/.test($("ePhone").value)) return toast("Invalid phone number (minimum 10 digits required)", "error");
   const fd = new URLSearchParams({
     action: "update",
     booking_id: editData.booking_id,
