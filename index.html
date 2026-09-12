@@ -976,7 +976,9 @@ $("addBookingBtn").onclick = () => { $("addModal").classList.add("show"); refres
 function closeAdd() { $("addModal").classList.remove("show"); }
 
 async function addBooking() {
-  if (!/^\d{10,}$/.test($("phone").value)) return toast("Invalid phone number (minimum 10 digits required)", "error");
+  const rawPhone = ($("phone").value || "").trim();
+  const phoneDigits = rawPhone.replace(/\D/g, "");
+  if (phoneDigits.length < 10) return toast("Invalid phone number (minimum 10 digits required)", "error");
   if ($("guests").value > 4) return toast("Maximum 4 guests allowed", "error");
 
   const ci = $("checkin").value;
@@ -994,13 +996,13 @@ async function addBooking() {
 
   const fd = new URLSearchParams({
     action: "add",
-    guest_name: $("guest").value,
-    phone: $("phone").value,
+    guest_name: $("guest").value.trim(),
+    phone: rawPhone,
     no_of_guests: $("guests").value,
     room_no: rm,
     check_in: ci,
     check_out: co,
-    description: $("desc").value,
+    description: $("desc").value.trim(),
     advance_amount: $("advance").value || 0
   });
 
@@ -1165,17 +1167,19 @@ function editBooking(id) {
 }
 function closeEdit() { $("editModal").classList.remove("show"); }
 async function saveEdit() {
-  if (!/^\d{10,}$/.test($("ePhone").value)) return toast("Invalid phone number (minimum 10 digits required)", "error");
+  const rawPhone = ($("ePhone").value || "").trim();
+  const phoneDigits = rawPhone.replace(/\D/g, "");
+  if (phoneDigits.length < 10) return toast("Invalid phone number (minimum 10 digits required)", "error");
   const fd = new URLSearchParams({
     action: "update",
     booking_id: editData.booking_id,
-    guest_name: $("eGuest").value,
-    phone: $("ePhone").value,
+    guest_name: $("eGuest").value.trim(),
+    phone: rawPhone,
     no_of_guests: $("eGuests").value,
     room_no: editData.room_no,
     check_in: $("eIn").value,
     check_out: $("eOut").value,
-    description: $("eDesc").value,
+    description: $("eDesc").value.trim(),
     advance_amount: $("eAdvance").value || 0
   });
   const res = await fetch(API_URL, { method: "POST", body: fd });
