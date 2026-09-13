@@ -663,6 +663,11 @@
       <label>Advance Amount (₹)</label>
       <input id="advance" type="number" min="0" value="0" placeholder="0">
     </div>
+    <div class="form-group">
+      <label>Guest ID Proof (Aadhaar / Driving License / Passport)</label>
+      <input type="file" id="idProof" accept="image/*,.pdf"
+        style="width:100%;padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font-size:13px;">
+    </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeAdd()">Cancel</button>
       <button class="btn-success" onclick="addBooking()">Confirm Booking</button>
@@ -685,6 +690,7 @@
     <div class="detail-row"><span class="detail-label">Check-out</span><span class="detail-value" id="vOut"></span></div>
     <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value" id="vDesc" style="text-align:right;max-width:65%;word-break:break-word;"></span></div>
     <div class="detail-row"><span class="detail-label">Advance Paid</span><span class="detail-value" style="color:#a78bfa;">₹ <span id="vAdvance">0</span></span></div>
+    <div class="detail-row"><span class="detail-label">ID Proof</span><span class="detail-value" id="vIdProof">—</span></div>
     <div class="modal-actions">
       <button class="btn-primary" onclick="closeView()">Close</button>
       <button id="vEditBtn" class="btn-warning hidden" onclick="openEditFromView()">✏️ Edit Booking</button>
@@ -735,6 +741,12 @@
     <div class="form-group">
       <label>Advance Amount (₹)</label>
       <input id="eAdvance" type="number" min="0" value="0">
+    </div>
+    <div class="form-group">
+      <label>Update Guest ID Proof</label>
+      <input type="file" id="eIdProof" accept="image/*,.pdf"
+        style="width:100%;padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font-size:13px;">
+      <p id="eCurrentIdProof" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></p>
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeEdit()">Cancel</button>
@@ -973,9 +985,26 @@ function refreshRoomOptions() {
 $("checkin").addEventListener("change", refreshRoomOptions);
 $("checkout").addEventListener("change", refreshRoomOptions);
 
+/* ── HELPER: File to Base64 ── */
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result.split(",")[1];
+      resolve({
+        data: b64,
+        name: file.name,
+        type: file.type || "image/png"
+      });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 /* ── ADD ── */
-$("addBookingBtn").onclick = () => { $("addModal").classList.add("show"); refreshRoomOptions(); };
-function closeAdd() { $("addModal").classList.remove("show"); }
+$("addBookingBtn").onclick = () => { $("addModal").classList.add("show"); $("idProof").value = ""; refreshRoomOptions(); };
+function closeAdd() { $("addModal").classList.remove("show"); $("idProof").value = ""; }
 
 async function addBooking() {
   const rawPhone = ($("phone").value || "").trim();
@@ -1007,6 +1036,18 @@ async function addBooking() {
     description: $("desc").value.trim(),
     advance_amount: $("advance").value || 0
   });
+
+  const fileInput = $("idProof");
+  if (fileInput.files && fileInput.files[0]) {
+    try {
+      const f = await fileToBase64(fileInput.files[0]);
+      fd.append("file_data", f.data);
+      fd.append("file_name", f.name);
+      fd.append("mime_type", f.type);
+    } catch(e) {
+      console.warn("Could not read ID proof file", e);
+    }
+  }
 
   const res = await fetch(API_URL, { method: "POST", body: fd });
   const r = await res.json();
@@ -1115,6 +1156,12 @@ function viewBooking(id) {
   $("vDesc").textContent = viewData.description || "—";
   $("vAdvance").textContent = (Number(viewData.advance_amount) || 0).toLocaleString("en-IN");
 
+  if (viewData.id_proof_url) {
+    $("vIdProof").innerHTML = `<a href="${viewData.id_proof_url}" target="_blank" style="color:#60a5fa;text-decoration:underline;font-weight:600;">📄 View Uploaded ID</a>`;
+  } else {
+    $("vIdProof").textContent = "—";
+  }
+
   const today = dOnly(new Date());
   const isFutureOrCurrent = dOnly(viewData.check_out) >= today;
   if (admin && isFutureOrCurrent) {
@@ -1165,9 +1212,15 @@ function editBooking(id) {
   $("eOut").value = dOnly(editData.check_out);
   $("eDesc").value = editData.description || "";
   $("eAdvance").value = Number(editData.advance_amount) || 0;
+  $("eIdProof").value = "";
+  if (editData.id_proof_url) {
+    $("eCurrentIdProof").innerHTML = `Current ID: <a href="${editData.id_proof_url}" target="_blank" style="color:#60a5fa;text-decoration:underline;">View uploaded file</a>`;
+  } else {
+    $("eCurrentIdProof").textContent = "No ID proof uploaded yet";
+  }
   $("editModal").classList.add("show");
 }
-function closeEdit() { $("editModal").classList.remove("show"); }
+function closeEdit() { $("editModal").classList.remove("show"); $("eIdProof").value = ""; }
 async function saveEdit() {
   const rawPhone = ($("ePhone").value || "").trim();
   const phoneDigits = rawPhone.replace(/\D/g, "");
@@ -1184,6 +1237,19 @@ async function saveEdit() {
     description: $("eDesc").value.trim(),
     advance_amount: $("eAdvance").value || 0
   });
+
+  const fileInput = $("eIdProof");
+  if (fileInput.files && fileInput.files[0]) {
+    try {
+      const f = await fileToBase64(fileInput.files[0]);
+      fd.append("file_data", f.data);
+      fd.append("file_name", f.name);
+      fd.append("mime_type", f.type);
+    } catch(e) {
+      console.warn("Could not read ID proof file", e);
+    }
+  }
+
   const res = await fetch(API_URL, { method: "POST", body: fd });
   const r = await res.json();
   if (!r.success) return toast(r.message || "Update failed", "error");
@@ -1633,90 +1699,4 @@ async function addExtraCharge() {
   editingExtraId = null;
   $("ecChargeName").value = ""; $("ecChargeAmount").value = "";
   $("ecAddForm").classList.add("hidden");
-  $("ecAddBtn").querySelector("button").textContent = "➕ Add Charge";
-  invalidateCache(extraBookingId);
-  await loadExtraCharges();
-}
-
-async function deleteExtraCharge(chargeId) {
-  if (!confirm("Remove this charge?")) return;
-  const fd = new URLSearchParams({ action: "deleteExtraCharge", charge_id: chargeId });
-  await fetch(API_URL, { method: "POST", body: fd });
-  toast("Charge removed", "info");
-  invalidateCache(extraBookingId);
-  await loadExtraCharges();
-}
-
-/* ── CALENDAR ── */
-let calMonth = new Date().getMonth();
-let calYear = new Date().getFullYear();
-
-$("calendarBtn").onclick = () => {
-  $("calendarWrapper").classList.toggle("hidden");
-  if (!$("calendarWrapper").classList.contains("hidden")) renderCalendar();
-};
-
-function changeMonth(step) {
-  calMonth += step;
-  if (calMonth < 0) { calMonth = 11; calYear--; }
-  if (calMonth > 11) { calMonth = 0; calYear++; }
-  renderCalendar();
-}
-
-function renderCalendar() {
-  const cal = $("calendar");
-  cal.innerHTML = "";
-
-  $("monthLabel").textContent = new Date(calYear, calMonth)
-    .toLocaleString("default", { month: "long", year: "numeric" });
-
-  const today     = dOnly(new Date());
-  const firstDay  = new Date(calYear, calMonth, 1).getDay();
-  const totalDays = new Date(calYear, calMonth + 1, 0).getDate();
-
-  for (let e = 0; e < firstDay; e++) {
-    cal.innerHTML += `<div class="calendar-day empty"></div>`;
-  }
-
-  for (let d = 1; d <= totalDays; d++) {
-    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    const isToday = dateStr === today;
-
-    let chips = "";
-    for (let r = 1; r <= TOTAL_ROOMS; r++) {
-      const b = allData.find(x =>
-        x.status === "Booked" && x.room_no == r &&
-        dateStr >= dOnly(x.check_in) && dateStr < dOnly(x.check_out)
-      );
-      if (b) {
-        const name = b.guest_name.split(" ")[0];
-        chips += `<div class="room-chip chip-booked"
-                    title="${getRoomName(r)}: ${b.guest_name} · Click to view"
-                    onclick="viewBooking('${b.booking_id}')">
-                    🚪${getRoomName(r)}: ${name}
-                  </div>`;
-      } else {
-        chips += `<div class="room-chip chip-free">🚪${getRoomName(r)} Free</div>`;
-      }
-    }
-
-    cal.innerHTML += `
-      <div class="calendar-day${isToday ? ' today' : ''}">
-        <div class="calendar-date">${d}</div>
-        ${chips}
-      </div>`;
-  }
-}
-
-/* ── START ── */
-document.addEventListener("DOMContentLoaded", () => {
-  initRooms();
-  loadToday();
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {});
-  }
-});
-</script>
-
-</body>
-</html>
+  $("ecAddBtn").querySelector("button").textContent = "➕ Add Charg
