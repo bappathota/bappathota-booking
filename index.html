@@ -1060,8 +1060,15 @@ async function addBooking() {
 
 /* ── LOAD ── */
 async function loadAvailability(date, forceRefresh = false) {
-  if (!allData.length || forceRefresh) {
-    allData = await fetch(API_URL).then(r => r.json());
+  try {
+    if (!allData.length || forceRefresh) {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      allData = Array.isArray(data) ? data : [];
+    }
+  } catch (err) {
+    console.error("Failed to load bookings:", err);
+    toast("Failed to connect to Google Sheets backend", "error");
   }
   renderAvailability(date);
 }
@@ -1071,7 +1078,9 @@ async function refreshData() {
   btn.textContent = "⏳ Refreshing...";
   btn.disabled = true;
   try {
-    allData = await fetch(API_URL).then(r => r.json());
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    allData = Array.isArray(data) ? data : [];
     renderAvailability($("availDate").value);
     if (!$("calendarWrapper").classList.contains("hidden")) renderCalendar();
     toast("Data refreshed", "success");
@@ -1692,11 +1701,4 @@ async function addExtraCharge() {
   } else {
     const fd = new URLSearchParams({ action: "addExtraCharge", booking_id: extraBookingId, charge_name: name, amount });
     const r = await (await fetch(API_URL, { method: "POST", body: fd })).json();
-    if (!r.success) return toast(r.message, "error");
-    toast(`${name} added`, "success");
-  }
-
-  editingExtraId = null;
-  $("ecChargeName").value = ""; $("ecChargeAmount").value = "";
-  $("ecAddForm").classList.add("hidden");
-  $("ecAddBtn").querySelector("button").textContent = "➕ Add Charg
+    if (!
