@@ -5,8 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BappaThota Homestay</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/bappathota/bappathota-booking/main/Bappathota_Logo.png">
-<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/bappathota/bappathota-booking/main/Bappathota_Logo.png">
+<link rel="icon" type="image/png" href="logo-small.png">
+<link rel="apple-touch-icon" href="logo-small.png">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -35,8 +39,7 @@
     background: var(--bg);
     background-image:
       radial-gradient(ellipse at 20% 20%, rgba(59,130,246,.15) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 80%, rgba(16,185,129,.1) 0%, transparent 50%),
-      url("https://raw.githubusercontent.com/bappathota/Homestay/main/Image.jpeg");
+      radial-gradient(ellipse at 80% 80%, rgba(16,185,129,.1) 0%, transparent 50%);
     background-size: cover;
     background-blend-mode: overlay;
     background-attachment: fixed;
@@ -526,8 +529,18 @@
       max-width: 100%;
     }
   }
+  .room-checks { display:flex; flex-wrap:wrap; gap:8px; }
+  .form-group label.room-check {
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    padding:10px 14px; border-radius:10px; margin:0;
+    font-size:14px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--text);
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  }
+  .form-group .room-check input { width:18px; height:18px; padding:0; margin:0; accent-color:var(--primary); }
+  .form-group label.room-check.disabled { opacity:.45; cursor:not-allowed; text-decoration:line-through; }
+  .room-check small { color:var(--text-muted); font-size:11px; }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 </head>
 
 <body>
@@ -536,7 +549,7 @@
 <div class="header">
   <div class="header-badge">🏡 Homestay Management</div>
   <div style="display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:10px;">
-    <img src="https://raw.githubusercontent.com/bappathota/bappathota-booking/main/Bappathota_Logo.png" id="headerLogo" alt="BappaThota Homestay" style="width:110px;height:110px;object-fit:contain;filter:drop-shadow(0 4px 16px rgba(0,0,0,0.4));border-radius:12px;flex-shrink:0;">
+    <img src="logo-small.png" width="110" height="110" fetchpriority="high" id="headerLogo" alt="BappaThota Homestay" style="width:110px;height:110px;object-fit:contain;filter:drop-shadow(0 4px 16px rgba(0,0,0,0.4));border-radius:12px;flex-shrink:0;">
     <div style="text-align:left;">
       <h1 style="margin:0 0 4px;">BappaThota Homestay</h1>
       <p style="margin:0;">River View. Delta Life. Peaceful Stays.</p>
@@ -636,12 +649,8 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>No. of Guests (max 4)</label>
-        <input id="guests" type="number" min="1" max="4" placeholder="1–4">
-      </div>
-      <div class="form-group">
-        <label>Room</label>
-        <select id="room"></select>
+        <label>No. of Guests (max 4 per room)</label>
+        <input id="guests" type="number" min="1" max="8" placeholder="1–4">
       </div>
     </div>
     <div class="form-row">
@@ -653,6 +662,10 @@
         <label>Check-out</label>
         <input type="date" id="checkout">
       </div>
+    </div>
+    <div class="form-group">
+      <label>Room</label>
+      <div id="roomChecks" class="room-checks"></div>
     </div>
     <div class="form-group">
       <label>Description</label>
@@ -868,7 +881,10 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbyNAx2Tuc3tn2pLg3OVBJ2Cu5iRPn7EnQ-QrscSUC1JQ9s6hgpTecJiZQuS4M3TYRCJ3g/exec";
 const ROOM_NAMES = { 1: "Breeze", 2: "Delta" };
 const TOTAL_ROOMS = 2;
-const getRoomName = r => ROOM_NAMES[r] || `Room ${r}`;
+const getRoomName = r => String(r).split(",").map(x => x.trim()).filter(Boolean)
+  .map(x => ROOM_NAMES[x] || `Room ${x}`).join(" + ");
+// A booking's room_no may be a single room (1) or a list ("1,2")
+const hasRoom = (b, roomNo) => String(b.room_no).split(",").map(x => x.trim()).includes(String(roomNo));
 
 let admin = false;
 let allData = [];
@@ -932,42 +948,39 @@ function verifyAdmin() {
 
 /* ── INIT ── */
 function initRooms() {
-  for (let i = 1; i <= TOTAL_ROOMS; i++)
-    $("room").innerHTML += `<option value="${i}">${getRoomName(i)}</option>`;
+  refreshRoomOptions();
 }
 
-/* Auto-populate room dropdown with only rooms available for chosen dates */
+function isRoomBooked(roomNo, ci, co) {
+  return allData.some(b =>
+    b.status === "Booked" &&
+    hasRoom(b, roomNo) &&
+    ci < dOnly(b.check_out) &&
+    co > dOnly(b.check_in)
+  );
+}
+
+function getSelectedRooms() {
+  return [...document.querySelectorAll('#roomChecks input[name="roomChk"]:checked')].map(c => c.value);
+}
+
+/* Room checkboxes: rooms already booked for the chosen dates are disabled */
 function refreshRoomOptions() {
   const ci = $("checkin").value;
   const co = $("checkout").value;
-  const roomSel = $("room");
-  const prevValue = roomSel.value;
+  const datesValid = ci && co && ci < co;
+  const prev = getSelectedRooms();
 
-  roomSel.innerHTML = "";
+  let html = "";
   for (let i = 1; i <= TOTAL_ROOMS; i++) {
-    let isBooked = false;
-    if (ci && co && ci < co) {
-      isBooked = allData.some(b =>
-        b.status === "Booked" &&
-        b.room_no == i &&
-        ci < dOnly(b.check_out) &&
-        co > dOnly(b.check_in)
-      );
-    }
-    const opt = document.createElement("option");
-    opt.value = i;
-    opt.textContent = isBooked ? `${getRoomName(i)} (Booked)` : `${getRoomName(i)} (Available)`;
-    opt.disabled = isBooked;
-    roomSel.appendChild(opt);
+    const booked = datesValid && isRoomBooked(i, ci, co);
+    const checked = !booked && prev.includes(String(i)) ? "checked" : "";
+    html += `<label class="room-check ${booked ? "disabled" : ""}">
+      <input type="checkbox" name="roomChk" value="${i}" ${booked ? "disabled" : ""} ${checked}>
+      ${getRoomName(i)} <small>${booked ? "(Booked)" : datesValid ? "(Available)" : ""}</small>
+    </label>`;
   }
-  // keep previous selection if still available, else pick first available room
-  const stillAvailable = [...roomSel.options].find(o => o.value === prevValue && !o.disabled);
-  if (stillAvailable) {
-    roomSel.value = prevValue;
-  } else {
-    const firstAvailable = [...roomSel.options].find(o => !o.disabled);
-    if (firstAvailable) roomSel.value = firstAvailable.value;
-  }
+  $("roomChecks").innerHTML = html;
 }
 
 $("checkin").addEventListener("change", refreshRoomOptions);
@@ -980,27 +993,25 @@ async function addBooking() {
   const rawPhone = ($("phone").value || "").trim();
   const phoneDigits = rawPhone.replace(/\D/g, "");
   if (phoneDigits.length < 10) return toast("Invalid phone number (minimum 10 digits required)", "error");
-  if ($("guests").value > 4) return toast("Maximum 4 guests allowed", "error");
 
   const ci = $("checkin").value;
   const co = $("checkout").value;
-  const rm = $("room").value;
+  const rooms = getSelectedRooms();
 
   if (!ci || !co || ci >= co) return toast("Invalid check-in / check-out dates", "error");
+  if (!rooms.length) return toast("Please select at least one room", "error");
+  if (Number($("guests").value) > 4 * rooms.length)
+    return toast(`Maximum ${4 * rooms.length} guests allowed for ${rooms.length} room(s)`, "error");
 
-  if (allData.some(b =>
-    b.status === "Booked" &&
-    b.room_no == rm &&
-    ci < dOnly(b.check_out) &&
-    co > dOnly(b.check_in)
-  )) return toast("Room already booked for those dates", "error");
+  const bookedRoom = rooms.find(rm => isRoomBooked(rm, ci, co));
+  if (bookedRoom) return toast(`${getRoomName(bookedRoom)} already booked for those dates`, "error");
 
   const fd = new URLSearchParams({
     action: "add",
     guest_name: $("guest").value.trim(),
     phone: rawPhone,
     no_of_guests: $("guests").value,
-    room_no: rm,
+    room_no: rooms.join(","),
     check_in: ci,
     check_out: co,
     description: $("desc").value.trim(),
@@ -1012,23 +1023,61 @@ async function addBooking() {
   if (!r.success) return toast(r.message, "error");
 
   closeAdd();
-  toast("Booking confirmed!", "success");
+  toast(rooms.length > 1 ? `${rooms.length} rooms booked!` : "Booking confirmed!", "success");
   loadToday();
 }
 
 /* ── LOAD ── */
-async function loadAvailability(date, forceRefresh = false) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    if (!allData.length || forceRefresh) {
-      const res = await fetch(API_URL);
-      const data = await res.json();
-      allData = Array.isArray(data) ? data : [];
-    }
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* Bookings are saved on the device so the page can show them instantly,
+   then updated from the server in the background. */
+const BOOKINGS_CACHE_KEY = "bt_bookings_v1";
+
+function readCachedBookings() {
+  try {
+    const d = JSON.parse(localStorage.getItem(BOOKINGS_CACHE_KEY));
+    return Array.isArray(d) ? d : null;
+  } catch (e) { return null; }
+}
+
+async function fetchBookings() {
+  const res = await fetchWithTimeout(API_URL);
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error((data && data.message) || "Unexpected server response");
+  allData = data;
+  try { localStorage.setItem(BOOKINGS_CACHE_KEY, JSON.stringify(data)); } catch (e) {}
+}
+
+function rerenderAll() {
+  renderAvailability($("availDate").value);
+  if (!$("calendarWrapper").classList.contains("hidden")) renderCalendar();
+  if ($("addModal").classList.contains("show")) refreshRoomOptions();
+}
+
+async function loadAvailability(date, forceRefresh = false) {
+  if (!allData.length) {
+    const cached = readCachedBookings();
+    if (cached) { allData = cached; renderAvailability(date); }
+  }
+  if (allData.length && !forceRefresh) return renderAvailability(date);
+
+  try {
+    await fetchBookings();
   } catch (err) {
     console.error("Failed to load bookings:", err);
-    toast("Failed to connect to Google Sheets backend", "error");
+    const msg = err.name === "AbortError" ? "Server is taking too long to respond." : "Couldn't reach Google Sheets.";
+    toast(allData.length ? msg + " Showing last saved data." : msg + " Please try Refresh.", "error");
   }
-  renderAvailability(date);
+  rerenderAll();
 }
 
 async function refreshData() {
@@ -1036,11 +1085,8 @@ async function refreshData() {
   btn.textContent = "⏳ Refreshing...";
   btn.disabled = true;
   try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
-    allData = Array.isArray(data) ? data : [];
-    renderAvailability($("availDate").value);
-    if (!$("calendarWrapper").classList.contains("hidden")) renderCalendar();
+    await fetchBookings();
+    rerenderAll();
     toast("Data refreshed", "success");
   } catch(e) {
     toast("Refresh failed. Check connection.", "error");
@@ -1057,7 +1103,7 @@ function renderAvailability(date) {
   for (let i = 1; i <= TOTAL_ROOMS; i++) {
     const b = allData.find(x =>
       x.status === "Booked" &&
-      x.room_no == i &&
+      hasRoom(x, i) &&
       date >= dOnly(x.check_in) &&
       date < dOnly(x.check_out)
     );
@@ -1694,7 +1740,7 @@ function renderCalendar() {
     let chips = "";
     for (let r = 1; r <= TOTAL_ROOMS; r++) {
       const b = allData.find(x =>
-        x.status === "Booked" && x.room_no == r &&
+        x.status === "Booked" && hasRoom(x, r) &&
         dateStr >= dOnly(x.check_in) && dateStr < dOnly(x.check_out)
       );
       if (b) {
